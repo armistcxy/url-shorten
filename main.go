@@ -39,10 +39,10 @@ func main() {
 	urlHandler := internal.NewURLHandler(postgresURLRepo)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
-		http.Handle("POST /short", ApplyChain(createShortURLHandler, HTTPLoggingMiddleware))
+		http.Handle("POST /short", ApplyChain(createShortURLHandler, RateLimitMiddleware))
 
 		getURLHandler := http.HandlerFunc(urlHandler.GetOriginURLHandle)
-		http.Handle("GET /short/{id}", ApplyChain(getURLHandler, HTTPLoggingMiddleware))
+		http.Handle("GET /short/{id}", getURLHandler)
 	}
 
 	// Warning: This is just a work around to deal with my concurrent problem with load testing using my tool (https://github.com/armistcxy/go-load-testing)
@@ -85,7 +85,7 @@ func main() {
 			return
 		}
 	})
-	http.Handle("POST /create", ApplyChain(waCreateShortURLHandler, HTTPLoggingMiddleware))
+	http.Handle("POST /create", waCreateShortURLHandler)
 	// Gracefully shutdown
 	done := make(chan struct{})
 	go func() {

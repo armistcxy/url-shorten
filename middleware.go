@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	"github.com/tomasen/realip"
+	"golang.org/x/time/rate"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -77,3 +79,17 @@ func logHTTPInfo(info *HTTPInfo) {
 
 	log.Println(strBuilder.String())
 }
+
+func RateLimitMiddleware(next http.Handler) http.Handler {
+	limiter := rate.NewLimiter(rate.Limit(1000), 1000)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if limiter.Allow() {
+			next.ServeHTTP(w, r)
+		} else {
+			http.Error(w, ErrReachLimitRequest.Error(), http.StatusTooManyRequests)
+			return
+		}
+	})
+}
+
+var ErrReachLimitRequest = errors.New("reach the number of maximum requests")
