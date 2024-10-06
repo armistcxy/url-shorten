@@ -1,5 +1,8 @@
 package internal
 
+// This file contains related things need to deal with when implementing request handler
+// Currently only encodejson and decodejson
+
 import (
 	"encoding/json"
 	"errors"
