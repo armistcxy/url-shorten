@@ -3,9 +3,12 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/go-faker/faker/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
@@ -140,8 +143,49 @@ func TestPostgresRepoGetOrigin(t *testing.T) {
 	}
 }
 
-func BenchmarkPostgresRepository(b *testing.B) {
+func BenchmarkPostgresRepositoryMassiveCreate(b *testing.B) {
+	b.StopTimer()
+	var short *ShortURL
+	var err error
+	dsn := os.Getenv("URL_DSN")
+	repo, err := NewPostgresURLRepository(dsn)
+	if err != nil {
+		slog.Error("failed when prepare repository for benchmark massive create (postgresql)", "error", err.Error())
+		b.FailNow()
+	}
+	ids := make([]string, 0)
+	b.StartTimer()
 
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		url := faker.URL()
+		b.StartTimer()
+
+		short, err = repo.Create(ctx, url)
+		if err != nil {
+			slog.Error("failed to create short url", "error", err.Error())
+		}
+
+		b.StopTimer()
+		ids = append(ids, short.ID)
+		b.StartTimer()
+	}
+
+	b.StopTimer()
+	b.Cleanup(func() {
+		query := `
+			DELETE FROM urls
+			WHERE id=$1
+		`
+		for id := range ids {
+			_, err := repo.db.Exec(query, id)
+			if err != nil {
+				slog.Error("failed when cleaning up", "error", err.Error())
+			}
+		}
+	})
 }
 
 func postgresRepoInitHelper(db *sqlx.DB, fixtures []URLFixture) error {

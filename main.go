@@ -10,6 +10,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"shorten/internal"
@@ -18,7 +19,7 @@ import (
 
 func main() {
 	_ = make([]byte, 10<<30)
-	host := flag.String("host", "localhost", "Host of HTTP server")
+	host := flag.String("host", "", "Host of HTTP server")
 	port := flag.Int("port", 8080, "Port that HTTP server listen to")
 
 	flag.Parse()
@@ -27,7 +28,7 @@ func main() {
 
 	srv := http.Server{
 		Addr:    addr,
-		Handler: http.DefaultServeMux,
+		Handler: ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware),
 	}
 
 	postgresDSN := os.Getenv("URL_DSN")
@@ -39,7 +40,7 @@ func main() {
 	urlHandler := internal.NewURLHandler(postgresURLRepo)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
-		http.Handle("POST /short", ApplyChain(createShortURLHandler, RateLimitMiddleware))
+		http.Handle("POST /short", createShortURLHandler)
 
 		getURLHandler := http.HandlerFunc(urlHandler.GetOriginURLHandle)
 		http.Handle("GET /short/{id}", getURLHandler)

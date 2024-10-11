@@ -55,7 +55,7 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("fail to retrive origin url, error: %s", err), http.StatusInternalServerError)
 		return
 	}
-	EncodeJSON(w, map[string]string{"url": originURL})
+	EncodeJSON(w, map[string]string{"origin": originURL})
 }
 
 // CreateShortURLHandle handles the POST request to create a new short URL.
