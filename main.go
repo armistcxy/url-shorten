@@ -13,8 +13,10 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"shorten/internal"
 	"time"
+
+	"github.com/armistcxy/shorten/internal/handler"
+	"github.com/armistcxy/shorten/internal/repository"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -46,12 +48,12 @@ func main() {
 	}	
 
 	postgresDSN := os.Getenv("URL_DSN")
-	postgresURLRepo, err := internal.NewPostgresURLRepository(postgresDSN)
+	postgresURLRepo, err := repository.NewPostgresURLRepository(postgresDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	urlHandler := internal.NewURLHandler(postgresURLRepo)
+	urlHandler := handler.NewURLHandler(postgresURLRepo)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)

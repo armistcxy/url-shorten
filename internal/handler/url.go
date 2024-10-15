@@ -1,4 +1,4 @@
-package internal
+package handler
 
 import (
 	"context"
@@ -6,31 +6,22 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
+
+	"github.com/armistcxy/shorten/internal/domain"
+	"github.com/armistcxy/shorten/internal/util"
 
 	"github.com/bits-and-blooms/bloom/v3"
 )
-
-type ShortURL struct {
-	ID        string    `json:"id"`
-	Origin    string    `json:"origin"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-type URLRepository interface {
-	Create(ctx context.Context, url string) (*ShortURL, error)
-	Get(ctx context.Context, id string) (string, error)
-}
 
 // This will deal with 2 end points
 // /short/:id GET => Return original url
 // /create?url= POST => Return short url
 type URLHandler struct {
-	repo     URLRepository
+	repo     domain.URLRepository
 	idFilter *bloom.BloomFilter
 }
 
-func NewURLHandler(repo URLRepository) *URLHandler {
+func NewURLHandler(repo domain.URLRepository) *URLHandler {
 	return &URLHandler{
 		repo:     repo,
 		idFilter: bloom.NewWithEstimates(1_000_000, 0.01),
@@ -55,7 +46,7 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("fail to retrive origin url, error: %s", err), http.StatusInternalServerError)
 		return
 	}
-	EncodeJSON(w, map[string]string{"origin": originURL})
+	util.EncodeJSON(w, map[string]string{"origin": originURL})
 }
 
 // CreateShortURLHandle handles the POST request to create a new short URL.
@@ -63,7 +54,7 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 // and encodes the short URL as a JSON response.
 func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Request) {
 	form := CreateShortForm{}
-	if err := DecodeJSON(r, &form); err != nil {
+	if err := util.DecodeJSON(r, &form); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		slog.Error("fail when decode json body", "error", err.Error())
 		return
@@ -81,9 +72,7 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	uh.idFilter.Add([]byte(short.ID))
-	
-	shortURL := fmt.Sprintf("http://localhost:8080/short/%s", short.ID)
-    EncodeJSON(w, map[string]string{"shortUrl": shortURL})
+	util.EncodeJSON(w, short)
 }
 
 type CreateShortForm struct {

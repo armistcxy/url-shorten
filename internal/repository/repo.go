@@ -1,9 +1,9 @@
-package internal
+package repository
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 
@@ -47,12 +47,12 @@ func initTables(db *sqlx.DB) {
 	_ = db.MustExec(createURLTableQuery)
 }
 
-func (pr *PostgresURLRepository) Create(ctx context.Context, url string) (*ShortURL, error) {
-	id := randomString(6)
+func (pr *PostgresURLRepository) Create(ctx context.Context, url string) (*domain.ShortURL, error) {
+	id := domain.RandomString(6)
 	insertURLQuery := `
 		INSERT INTO urls (id, original_url) VALUES ($1, $2) RETURNING created_at;
 	`
-	short := &ShortURL{
+	short := &domain.ShortURL{
 		ID:     id,
 		Origin: url,
 	}
@@ -75,7 +75,20 @@ func (pr *PostgresURLRepository) Get(ctx context.Context, id string) (string, er
 }
 
 type BoltURLRepository struct {
-	db *bolt.DB
+	db         *bolt.DB
+	partitions []Partition // all id inside partition range stored in one bucket
+}
+
+const (
+	PARTITION_SIZE int   = 1 << 25 // random number, don't mind
+	BASE           int64 = 62
+)
+
+// A partition considered archieved if all the id inside its range have been used
+// (i.e., used == PARTITION_SIZE)
+type Partition struct {
+	start int // Start id in partition
+	used  int // Number of id have already been used
 }
 
 func NewBoltURLRepository(path string) (*BoltURLRepository, error) {
@@ -89,51 +102,10 @@ func NewBoltURLRepository(path string) (*BoltURLRepository, error) {
 	}, nil
 }
 
-// TODO: using context in database operation
-
-func (br *BoltURLRepository) Create(ctx context.Context, url string) (*ShortURL, error) {
-	id := randomString(6)
-
-	err := br.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte("urls"))
-		if err != nil {
-			return err
-		}
-
-		err = bucket.Put([]byte(id), []byte(url))
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &ShortURL{ID: id, Origin: url}, nil
+func (br *BoltURLRepository) Create(ctx context.Context, url string) (*domain.ShortURL, error) {
+	return nil, nil
 }
 
 func (br *BoltURLRepository) Get(ctx context.Context, id string) (string, error) {
-	var value []byte
-	err := br.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte("urls"))
-		if bucket == nil {
-			return bolt.ErrBucketNotFound
-		}
-
-		value = bucket.Get([]byte(id))
-		return nil
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	if value == nil {
-		return "", fmt.Errorf("key %s not found in bucket", id)
-	}
-
-	return string(value), nil
+	return "", nil
 }

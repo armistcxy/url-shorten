@@ -1,4 +1,4 @@
-package internal
+package util
 
 // This file contains related things need to deal with when implementing request handler
 // Currently only encodejson and decodejson

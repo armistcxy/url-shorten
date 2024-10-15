@@ -1,4 +1,4 @@
-package internal
+package repository
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/go-faker/faker/v4"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -96,7 +97,7 @@ func TestPostgresRepoGetOrigin(t *testing.T) {
 		{Origin: "https://www.youtube.com"},
 	}
 	for i := range fixtures {
-		fixtures[i].ID = randomString(6)
+		fixtures[i].ID = domain.RandomString(6)
 	}
 
 	// clean
@@ -145,7 +146,7 @@ func TestPostgresRepoGetOrigin(t *testing.T) {
 
 func BenchmarkPostgresRepositoryMassiveCreate(b *testing.B) {
 	b.StopTimer()
-	var short *ShortURL
+	var short *domain.ShortURL
 	var err error
 	dsn := os.Getenv("URL_DSN")
 	repo, err := NewPostgresURLRepository(dsn)

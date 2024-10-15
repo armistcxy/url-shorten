@@ -1,14 +1,17 @@
-package internal
+package domain
 
 import (
+	"math/rand/v2"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func benchmarkGenerateRandomString(len int, b *testing.B) {
 	var s string
 	for range b.N {
-		s = randomString(len)
+		s = RandomString(len)
 	}
 	runtime.KeepAlive(s)
 }
@@ -38,3 +41,13 @@ BenchmarkGenerateRandomStringLength6-12           109509             10719 ns/op
 
 // Base on the benchmark results above => There's not much different when generate between string length
 // Just use Length = 6 => there are 62 ^ 6 possible URLs
+
+func TestDecodeID(t *testing.T) {
+	num := int64(rand.IntN(100000000))
+	assert.Equal(t, num, DecodeID(EncodeID(num)))
+}
+
+func TestEncodeID(t *testing.T) {
+	randStr := "abc1Az24e"
+	assert.Equal(t, randStr, EncodeID(DecodeID(randStr)))
+}

@@ -1,4 +1,4 @@
-package internal
+package util
 
 // Use bloom filter technique for membership query
 // This will be the frontier to check whether URL was created before
