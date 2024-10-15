@@ -17,8 +17,22 @@ import (
 	"time"
 )
 
+func CORS(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+        if r.Method == "OPTIONS" {
+            return
+        }
+
+        next.ServeHTTP(w, r)
+    })
+}
+
 func main() {
-	_ = make([]byte, 10<<30)
+	// _ = make([]byte, 10<<30)
 	host := flag.String("host", "", "Host of HTTP server")
 	port := flag.Int("port", 8080, "Port that HTTP server listen to")
 
@@ -28,8 +42,8 @@ func main() {
 
 	srv := http.Server{
 		Addr:    addr,
-		Handler: ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware),
-	}
+		Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
+	}	
 
 	postgresDSN := os.Getenv("URL_DSN")
 	postgresURLRepo, err := internal.NewPostgresURLRepository(postgresDSN)
