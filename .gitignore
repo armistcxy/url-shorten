@@ -1,3 +1,4 @@
 .env
 shorten
 script.js
+node_modules

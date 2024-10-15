@@ -81,7 +81,9 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	uh.idFilter.Add([]byte(short.ID))
-	EncodeJSON(w, short)
+	
+	shortURL := fmt.Sprintf("http://localhost:8080/short/%s", short.ID)
+    EncodeJSON(w, map[string]string{"shortUrl": shortURL})
 }
 
 type CreateShortForm struct {
