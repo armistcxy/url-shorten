@@ -22,18 +22,14 @@ function App() {
     try {
       const response = await axios.post(
         "http://localhost:8080/short",
-        {
-          origin: originalUrl,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        { origin: originalUrl },
+        { headers: { "Content-Type": "application/json" } }
       );
 
       if (response.status === 200) {
-        setShortUrl(response.data.shortUrl);
+        console.log(response.data);
+        const baseUrl = "http://localhost:8080";
+        setShortUrl(`${baseUrl}/${response.data.id}`);
         setErrorMessage("");
       }
     } catch (error) {
