@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Box, Typography, Button, InputAdornment, Input } from "@mui/material";
+import { Box, Typography, Button, Input } from "@mui/material";
 import "./App.css";
-import LinkIcon from "@mui/icons-material/Link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPenToSquare,
