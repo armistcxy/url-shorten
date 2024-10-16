@@ -15,22 +15,24 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/armistcxy/shorten/internal/cache"
 	"github.com/armistcxy/shorten/internal/handler"
+	"github.com/armistcxy/shorten/internal/idgen"
 	"github.com/armistcxy/shorten/internal/repository"
 )
 
 func CORS(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Access-Control-Allow-Origin", "*")
-        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-        if r.Method == "OPTIONS" {
-            return
-        }
+		if r.Method == "OPTIONS" {
+			return
+		}
 
-        next.ServeHTTP(w, r)
-    })
+		next.ServeHTTP(w, r)
+	})
 }
 
 func main() {
@@ -40,12 +42,13 @@ func main() {
 
 	flag.Parse()
 
-	addr := fmt.Sprintf("%s:%d", *host, *port)
-
-	srv := http.Server{
-		Addr:    addr,
-		Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
-	}	
+	var (
+		addr = fmt.Sprintf("%s:%d", *host, *port)
+		srv  = http.Server{
+			Addr:    addr,
+			Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
+		}
+	)
 
 	postgresDSN := os.Getenv("URL_DSN")
 	postgresURLRepo, err := repository.NewPostgresURLRepository(postgresDSN)
@@ -53,7 +56,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	urlHandler := handler.NewURLHandler(postgresURLRepo)
+	redisAddr := os.Getenv("REDIS_URL")
+	ca := cache.NewRedisCache(redisAddr)
+
+	idgen := idgen.NewRandomIDGenerator()
+
+	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)

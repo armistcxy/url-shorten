@@ -2,6 +2,9 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"time"
 
 	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/jmoiron/sqlx"
@@ -47,8 +50,7 @@ func initTables(db *sqlx.DB) {
 	_ = db.MustExec(createURLTableQuery)
 }
 
-func (pr *PostgresURLRepository) Create(ctx context.Context, url string) (*domain.ShortURL, error) {
-	id := domain.RandomString(6)
+func (pr *PostgresURLRepository) Create(ctx context.Context, id string, url string) (*domain.ShortURL, error) {
 	insertURLQuery := `
 		INSERT INTO urls (id, original_url) VALUES ($1, $2) RETURNING created_at;
 	`
@@ -74,25 +76,21 @@ func (pr *PostgresURLRepository) Get(ctx context.Context, id string) (string, er
 	return origin, nil
 }
 
+// K-V storage approach start from here
+// Current approach: Divide into partitions, each partitions will responsible for a
+// specific range, each partition will be stored inside one bucket
 type BoltURLRepository struct {
-	db         *bolt.DB
-	partitions []Partition // all id inside partition range stored in one bucket
+	db *bolt.DB
 }
 
 const (
-	PARTITION_SIZE int   = 1 << 25 // random number, don't mind
-	BASE           int64 = 62
+	PARTITION_SIZE = 1 << 25
 )
 
-// A partition considered archieved if all the id inside its range have been used
-// (i.e., used == PARTITION_SIZE)
-type Partition struct {
-	start int // Start id in partition
-	used  int // Number of id have already been used
-}
+var bboltPath = os.Getenv("KV_STORAGE_PATH")
 
 func NewBoltURLRepository(path string) (*BoltURLRepository, error) {
-	db, err := bolt.Open(path, 0600, nil)
+	db, err := bolt.Open(bboltPath, 0600, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -102,10 +100,75 @@ func NewBoltURLRepository(path string) (*BoltURLRepository, error) {
 	}, nil
 }
 
-func (br *BoltURLRepository) Create(ctx context.Context, url string) (*domain.ShortURL, error) {
-	return nil, nil
+// bbolt can't perform concurrent write and that's bad => I will consider switch to another storage
+// bbolt will turn concurrent write operations into serialization
+func (br *BoltURLRepository) Create(ctx context.Context, id string, url string) (*domain.ShortURL, error) {
+	decodeID := domain.DecodeID(id)
+	bucketName := fmt.Sprintf("short-%d", decodeID/PARTITION_SIZE)
+	err := br.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return newErrBucketNotExist(bucketName)
+		}
+		return b.Put([]byte(id), []byte(url))
+	})
+	if err != nil {
+		return nil, err
+	}
+	shortenURL := &domain.ShortURL{
+		ID:        id,
+		Origin:    url,
+		CreatedAt: time.Now(),
+	}
+	return shortenURL, nil
 }
 
 func (br *BoltURLRepository) Get(ctx context.Context, id string) (string, error) {
-	return "", nil
+	decodeID := domain.DecodeID(id)
+	bucketName := fmt.Sprintf("short-%d", decodeID/PARTITION_SIZE)
+
+	var origin string
+
+	err := br.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return newErrBucketNotExist(bucketName)
+		}
+		result := b.Get([]byte(id))
+		if result == nil {
+			return newErrIDNotExist(id)
+		}
+		origin = string(result)
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return origin, err
+}
+
+type ErrIDNotExist struct {
+	id string
+}
+
+func newErrIDNotExist(id string) ErrIDNotExist {
+	return ErrIDNotExist{id}
+}
+
+func (e ErrIDNotExist) Error() string {
+	return fmt.Sprintf("there's no entry with id: %s", e.id)
+}
+
+type ErrBucketNotExist struct {
+	name string
+}
+
+func newErrBucketNotExist(name string) ErrBucketNotExist {
+	return ErrBucketNotExist{name}
+}
+
+func (e ErrBucketNotExist) Error() string {
+	return fmt.Sprintf("there's no bucket with name: %s", e.name)
 }

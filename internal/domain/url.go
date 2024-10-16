@@ -12,6 +12,10 @@ type ShortURL struct {
 }
 
 type URLRepository interface {
-	Create(ctx context.Context, url string) (*ShortURL, error)
+	Create(ctx context.Context, id string, url string) (*ShortURL, error)
 	Get(ctx context.Context, id string) (string, error)
+}
+
+type IDGenerator interface {
+	GenerateID() string
 }
