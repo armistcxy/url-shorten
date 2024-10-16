@@ -52,6 +52,7 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		slog.Error("failed when try to retrieve entry from cache", "error", err.Error())
 	} else {
 		util.EncodeJSON(w, map[string]string{"origin": originURL})
+		return
 	}
 
 	// Find inside repository
