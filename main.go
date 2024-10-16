@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/armistcxy/shorten/internal/cache"
 	"github.com/armistcxy/shorten/internal/handler"
 	"github.com/armistcxy/shorten/internal/idgen"
 	"github.com/armistcxy/shorten/internal/repository"
@@ -41,12 +42,13 @@ func main() {
 
 	flag.Parse()
 
-	addr := fmt.Sprintf("%s:%d", *host, *port)
-
-	srv := http.Server{
-		Addr:    addr,
-		Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
-	}
+	var (
+		addr = fmt.Sprintf("%s:%d", *host, *port)
+		srv  = http.Server{
+			Addr:    addr,
+			Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
+		}
+	)
 
 	postgresDSN := os.Getenv("URL_DSN")
 	postgresURLRepo, err := repository.NewPostgresURLRepository(postgresDSN)
@@ -54,9 +56,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	redisAddr := os.Getenv("REDIS_URL")
+	ca := cache.NewRedisCache(redisAddr)
+
 	idgen := idgen.NewRandomIDGenerator()
 
-	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen)
+	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)
