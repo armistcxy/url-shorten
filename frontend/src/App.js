@@ -28,7 +28,7 @@ function App() {
 
       if (response.status === 200) {
         console.log(response.data);
-        const baseUrl = "http://localhost:8080";
+        const baseUrl = "http://localhost:8080/short/";
         setShortUrl(`${baseUrl}/${response.data.id}`);
         setErrorMessage("");
       }
