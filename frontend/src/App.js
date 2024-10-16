@@ -1,17 +1,15 @@
 import React, { useState } from "react";
 import axios from "axios";
-import {
-  Box,
-  IconButton,
-  Typography,
-  Avatar,
-  Button,
-  TextField,
-  InputAdornment,
-  Input,
-} from "@mui/material";
+import { Box, Typography, Button, InputAdornment, Input } from "@mui/material";
 import "./App.css";
 import LinkIcon from "@mui/icons-material/Link";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faPenToSquare,
+  faChartColumn,
+  faHeadset,
+  faLink,
+} from "@fortawesome/free-solid-svg-icons";
 
 function App() {
   const [originalUrl, setOriginalUrl] = useState("");
@@ -45,18 +43,21 @@ function App() {
   };
 
   return (
-    <Box>
+    <Box className="main">
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "400px",
-          backgroundColor: "white",
         }}
       >
-        <Typography fontWeight="600" fontSize="3rem" color="rgb(48,42,150)">
+        <Typography
+          fontWeight="600"
+          fontSize="3rem"
+          color="rgb(48,42,150)"
+          marginTop="20px"
+        >
           Create Short Links!
         </Typography>
         <Typography
@@ -68,35 +69,47 @@ function App() {
           _ is a custom short link personalization tool that enables you to
           target, engage, and drive more customers. Get started now.
         </Typography>
-        <Box onSubmit={handleSubmit} width="100%" maxWidth="800px">
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          width="100%"
+          maxWidth="800px"
+          sx={{
+            alignItems: "center",
+            backgroundColor: "white",
+            borderRadius: "12px",
+            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+            padding: "20px ",
+          }}
+        >
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              backgroundColor: "#f0f0f0",
+              padding: "10px ",
+              backgroundColor: "rgb(228, 233, 248)",
               borderRadius: "12px",
-              padding: "20px",
-              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
             }}
           >
+            <FontAwesomeIcon
+              icon={faLink}
+              fontSize="20px"
+              color="rgb(145,148,158)"
+            />
             <Input
               variant="outlined"
               placeholder="Paste a link to shorten it"
               fullWidth
               value={originalUrl}
               onChange={(e) => setOriginalUrl(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LinkIcon />
-                  </InputAdornment>
-                ),
-              }}
               sx={{
-                backgroundColor: "#fff",
+                backgroundColor: "rgb(228, 233, 248)",
                 borderRadius: "12px",
                 "& .MuiOutlinedInput-root": {
                   borderRadius: "12px",
+                },
+                "& .MuiInputBase-input": {
+                  fontSize: "1.2rem",
                 },
                 padding: "10px 20px",
               }}
@@ -107,10 +120,12 @@ function App() {
               variant="contained"
               color="primary"
               sx={{
+                fontSize: "1.2rem",
                 marginLeft: "10px",
                 padding: "10px 20px",
                 borderRadius: "12px",
                 backgroundColor: "#7f5fff",
+                textTransform: "none",
                 boxShadow: "none",
                 ":hover": {
                   backgroundColor: "#6f4eff",
@@ -120,76 +135,144 @@ function App() {
               Shorten
             </Button>
           </Box>
-        </Box>
-        {shortUrl && (
-          <Typography
-            variant="h6"
-            color="textSecondary"
-            style={{ marginTop: "20px" }}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
           >
-            Shortened URL:{" "}
-            <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-              {shortUrl}
-            </a>
-          </Typography>
-        )}
-        {errorMessage && (
-          <Typography color="error" style={{ marginTop: "20px" }}>
-            {errorMessage}
-          </Typography>
-        )}
+            {shortUrl && (
+              <Typography
+                variant="h6"
+                color="black"
+                fontSize="1.5rem"
+                style={{ marginTop: "20px" }}
+              >
+                Shortened URL:{" "}
+                <a href={shortUrl} target="_blank" rel="noopener noreferrer">
+                  {shortUrl}
+                </a>
+              </Typography>
+            )}
+            {errorMessage && (
+              <Typography color="error" style={{ marginTop: "20px" }}>
+                {errorMessage}
+              </Typography>
+            )}
+          </Box>
+        </Box>
       </Box>
-      <Box textAlign="center">
-        <Typography fontWeight="600" fontSize="2rem" color="rgb(48,42,150)">
-          A short link, infinite possibilites
-        </Typography>
-        <Typography fontSize="1.5rem">
-          With the advanced intelligent link shortening service, you can
-          customize your links and share them easily
-        </Typography>
-      </Box>
-      <Box display="flex" justifyContent="space-evenly">
-        <Box
-          textAlign="center"
-          border="solid 1px black"
-          borderRadius="20px"
-          maxWidth="400px"
-        >
-          <Typography fontWeight="600" fontSize="1.5rem" color="rgb(48,42,150)">
-            Custom Domains
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: "20px",
+          left: 0,
+          right: 0,
+          justifyContent: "center",
+          zIndex: 1000,
+        }}
+      >
+        <Box textAlign="center">
+          <Typography
+            fontWeight="600"
+            fontSize="2rem"
+            color="rgb(48,42,150)"
+            marginTop="40px"
+          >
+            A short link, infinite possibilites
           </Typography>
-          <Typography>
-            Track audience individually for each brand,website or client by
-            using your own domain or subdomain for link shortening.
+          <Typography fontSize="1.5rem" maxWidth="800px" margin="auto">
+            With the advanced intelligent link shortening service, you can
+            customize your links and share them easily.
           </Typography>
         </Box>
-        <Box
-          textAlign="center"
-          border="solid 1px black"
-          borderRadius="20px"
-          maxWidth="400px"
-        >
-          <Typography fontWeight="600" fontSize="1.5rem" color="rgb(48,42,150)">
-            Track Clicks
-          </Typography>
-          <Typography>
-            Focus your or your client's efforts on the most promising campaigns
-            by taking actions based on comprehensive statistics.
-          </Typography>
-        </Box>
-        <Box
-          textAlign="center"
-          border="solid 1px black"
-          borderRadius="20px"
-          maxWidth="400px"
-        >
-          <Typography fontWeight="600" fontSize="1.5rem" color="rgb(48,42,150)">
-            Friendly Support
-          </Typography>
-          <Typography>
-            We really care about your success in using short links, so you
-            always get answers.
-          </Typography>
+        <Box display="flex" justifyContent="space-evenly">
+          <Box
+            textAlign="center"
+            borderRadius="20px"
+            maxWidth="250px"
+            padding="20px"
+            height="200px"
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <FontAwesomeIcon
+              icon={faPenToSquare}
+              color="rgb(48,42,150)"
+              fontSize="28px"
+            />
+            <Typography
+              fontWeight="600"
+              fontSize="1.5rem"
+              color="rgb(48,42,150)"
+            >
+              Custom Domains
+            </Typography>
+            <Typography>
+              Track audience individually for each brand, website, or client by
+              using your own domain or subdomain for link shortening.
+            </Typography>
+          </Box>
+
+          <Box
+            textAlign="center"
+            borderRadius="20px"
+            maxWidth="250px"
+            padding="20px"
+            height="200px"
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <FontAwesomeIcon
+              icon={faChartColumn}
+              color="rgb(48,42,150)"
+              fontSize="28px"
+            />
+            <Typography
+              fontWeight="600"
+              fontSize="1.5rem"
+              color="rgb(48,42,150)"
+            >
+              Track Clicks
+            </Typography>
+            <Typography>
+              Focus your or your client's efforts on the most promising
+              campaigns by taking actions based on comprehensive statistics.
+            </Typography>
+          </Box>
+          <Box
+            textAlign="center"
+            borderRadius="20px"
+            maxWidth="250px"
+            padding="20px"
+            height="200px"
+            display="flex"
+            flexDirection="column"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <FontAwesomeIcon
+              icon={faHeadset}
+              color="rgb(48,42,150)"
+              fontSize="28px"
+            />
+            <Typography
+              fontWeight="600"
+              fontSize="1.5rem"
+              color="rgb(48,42,150)"
+            >
+              Friendly Support
+            </Typography>
+            <Typography>
+              We really care about your success in using short links, so you
+              always get answers.
+            </Typography>
+          </Box>
         </Box>
       </Box>
     </Box>
