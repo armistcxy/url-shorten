@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { Box, IconButton, Typography, Avatar, Button } from "@mui/material";
+import "./App.css";
 
 function App() {
   const [originalUrl, setOriginalUrl] = useState("");
@@ -33,8 +35,12 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <h1>URL Shortener</h1>
+    <Box>
+      <Typography>Create Short Links!</Typography>
+      <Typography>
+        _ is a custom short link personalization tool that enables you to
+        target, engage, and drive more customers. Get started now.
+      </Typography>
       <form onSubmit={handleSubmit}>
         <div>
           <label>Original URL:</label>
@@ -49,14 +55,14 @@ function App() {
       </form>
       {shortUrl && (
         <div>
-          <h2>Shortened URL:</h2>
+          <h2>Shortened URL</h2>
           <a href={shortUrl} target="_blank" rel="noopener noreferrer">
             {shortUrl}
           </a>
         </div>
       )}
       {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-    </div>
+    </Box>
   );
 }
 
