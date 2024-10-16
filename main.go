@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -19,6 +20,7 @@ import (
 	"github.com/armistcxy/shorten/internal/handler"
 	"github.com/armistcxy/shorten/internal/idgen"
 	"github.com/armistcxy/shorten/internal/repository"
+	"github.com/bits-and-blooms/bloom/v3"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -59,9 +61,39 @@ func main() {
 	redisAddr := os.Getenv("REDIS_URL")
 	ca := cache.NewRedisCache(redisAddr)
 
+	idfilter := bloom.NewWithEstimates(1_000_000, 0.01)
+
+	file, err := os.OpenFile("bloomfilter.bin", os.O_RDONLY, 0644)
+	if err != nil {
+		slog.Error("no previous bloom filter file", "error", err.Error())
+	}
+	if file != nil && err == nil {
+		r := bufio.NewReader(file)
+		_, err := idfilter.ReadFrom(r)
+		if err != nil {
+			slog.Error("failed to read from file for bloom filter previous data", "error", err.Error())
+		} else {
+			log.Print("read previous bloom filter data successfully")
+		}
+		file.Close()
+	}
+
+	// Write bloomfitler to binary file after server shutdown
+	defer func() {
+		file, err := os.OpenFile("bloomfilter.bin", os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			slog.Error("failed to create file for writing bloom filter data", "error", err.Error())
+		}
+		_, err = idfilter.WriteTo(file)
+		if err != nil {
+			slog.Error("failed to write bloom filter data", "error", err.Error())
+			file.Close()
+		}
+	}()
+
 	idgen := idgen.NewRandomIDGenerator()
 
-	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca)
+	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, idfilter, ca)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)

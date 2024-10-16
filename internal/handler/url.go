@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/armistcxy/shorten/internal/cache"
@@ -25,11 +26,11 @@ type URLHandler struct {
 	cache    cache.Cache
 }
 
-func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache) *URLHandler {
+func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, idFilter *bloom.BloomFilter, cache cache.Cache) *URLHandler {
 	return &URLHandler{
 		urlRepo:  urlRepo,
 		idGen:    idGen,
-		idFilter: bloom.NewWithEstimates(1_000_000, 0.01),
+		idFilter: idFilter,
 		cache:    cache,
 	}
 }
@@ -38,7 +39,8 @@ func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache
 // It extracts the ID from the request path, looks up the original URL in the URLRepository,
 // and encodes the original URL as a JSON response.
 func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	parts := strings.Split(r.URL.Path, "/")
+	id := parts[len(parts)-1]
 	if !uh.idFilter.Test([]byte(id)) { // if it return false => 100% element is not exist
 		http.Error(w, fmt.Sprintf("there's no url with id: %s", id), http.StatusNotFound)
 		return
