@@ -1,4 +1,20 @@
 services:
+  reverse-proxy:
+    image: traefik:v3.1
+    container_name: "traefik"
+    command: 
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false" # avoid unnecessary container exposed
+      - "--entryPoints.web.address=:80" 
+    ports:
+      - "80:80" # HTTP port
+      - "8080:8080" # Web UI (enabled by --api.insecure=true)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+      
   db: 
     image: postgres:16-alpine
     restart: always 
@@ -24,8 +40,6 @@ services:
   web: 
     build:
       context: ./
-    ports:
-      - "8080:8080"
     environment:
       - URL_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
     depends_on:
@@ -33,6 +47,10 @@ services:
         condition: service_healthy
     networks:
       - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`localhost`)"
+      - "traefik.http.services.web.loadbalancer.server.port=8080"
 
   
 volumes:
