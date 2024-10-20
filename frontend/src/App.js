@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { Box, Typography, Button, Input } from "@mui/material";
-import "./App.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPenToSquare,
@@ -10,7 +8,7 @@ import {
   faLink,
 } from "@fortawesome/free-solid-svg-icons";
 
-function App() {
+export default function App() {
   const [originalUrl, setOriginalUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -38,240 +36,79 @@ function App() {
   };
 
   return (
-    <Box className="main">
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography
-          fontWeight="600"
-          fontSize="3rem"
-          color="rgb(48,42,150)"
-          marginTop="20px"
-        >
-          Create Short Links!
-        </Typography>
-        <Typography
-          maxWidth="800px"
-          textAlign="center"
-          marginBottom="40px"
-          fontSize="1.5rem"
-        >
-          _ is a custom short link personalization tool that enables you to
-          target, engage, and drive more customers. Get started now.
-        </Typography>
-        <Box
-          component="form"
-          onSubmit={handleSubmit}
-          width="100%"
-          maxWidth="800px"
-          sx={{
-            alignItems: "center",
-            backgroundColor: "white",
-            borderRadius: "12px",
-            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-            padding: "20px ",
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px ",
-              backgroundColor: "rgb(228, 233, 248)",
-              borderRadius: "12px",
-            }}
-          >
-            <FontAwesomeIcon
-              icon={faLink}
-              fontSize="20px"
-              color="rgb(145,148,158)"
-            />
-            <Input
-              variant="outlined"
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-center text-indigo-700 mb-4">Create Short Links!</h1>
+        <p className="text-xl text-center mb-8">
+          _ is a custom short link personalization tool that enables you to target,
+          engage, and drive more customers. Get started now.
+        </p>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="flex flex-col sm:flex-row items-center bg-gray-100 rounded-lg p-2">
+            <FontAwesomeIcon icon={faLink} className="text-gray-500 mr-2" />
+            <input
+              type="url"
               placeholder="Paste a link to shorten it"
-              fullWidth
               value={originalUrl}
               onChange={(e) => setOriginalUrl(e.target.value)}
-              sx={{
-                backgroundColor: "rgb(228, 233, 248)",
-                borderRadius: "12px",
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "12px",
-                },
-                "& .MuiInputBase-input": {
-                  fontSize: "1.2rem",
-                },
-                padding: "10px 20px",
-              }}
+              className="flex-grow bg-transparent p-2 outline-none"
               required
             />
-            <Button
+            <button
               type="submit"
-              variant="contained"
-              color="primary"
-              sx={{
-                fontSize: "1.2rem",
-                marginLeft: "10px",
-                padding: "10px 20px",
-                borderRadius: "12px",
-                backgroundColor: "#7f5fff",
-                textTransform: "none",
-                boxShadow: "none",
-                ":hover": {
-                  backgroundColor: "#6f4eff",
-                },
-              }}
+              className="mt-2 sm:mt-0 w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition duration-300"
             >
               Shorten
-            </Button>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            {shortUrl && (
-              <Typography
-                variant="h6"
-                color="black"
-                fontSize="1.5rem"
-                style={{ marginTop: "20px" }}
-              >
-                Shortened URL:{" "}
-                <a href={shortUrl} target="_blank" rel="noopener noreferrer">
-                  {shortUrl}
-                </a>
-              </Typography>
-            )}
-            {errorMessage && (
-              <Typography color="error" style={{ marginTop: "20px" }}>
-                {errorMessage}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      </Box>
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: "20px",
-          left: 0,
-          right: 0,
-          justifyContent: "center",
-          zIndex: 1000,
-        }}
-      >
-        <Box textAlign="center">
-          <Typography
-            fontWeight="600"
-            fontSize="2rem"
-            color="rgb(48,42,150)"
-            marginTop="40px"
-          >
-            A short link, infinite possibilites
-          </Typography>
-          <Typography fontSize="1.5rem" maxWidth="800px" margin="auto">
-            With the advanced intelligent link shortening service, you can
-            customize your links and share them easily.
-          </Typography>
-        </Box>
-        <Box display="flex" justifyContent="space-evenly">
-          <Box
-            textAlign="center"
-            borderRadius="20px"
-            maxWidth="250px"
-            padding="20px"
-            height="200px"
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <FontAwesomeIcon
-              icon={faPenToSquare}
-              color="rgb(48,42,150)"
-              fontSize="28px"
-            />
-            <Typography
-              fontWeight="600"
-              fontSize="1.5rem"
-              color="rgb(48,42,150)"
-            >
-              Custom Domains
-            </Typography>
-            <Typography>
-              Track audience individually for each brand, website, or client by
-              using your own domain or subdomain for link shortening.
-            </Typography>
-          </Box>
+            </button>
+          </div>
+          {shortUrl && (
+            <p className="mt-4 text-lg">
+              Shortened URL:{" "}
+              <a href={shortUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {shortUrl}
+              </a>
+            </p>
+          )}
+          {errorMessage && <p className="mt-4 text-red-600">{errorMessage}</p>}
+        </form>
 
-          <Box
-            textAlign="center"
-            borderRadius="20px"
-            maxWidth="250px"
-            padding="20px"
-            height="200px"
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <FontAwesomeIcon
-              icon={faChartColumn}
-              color="rgb(48,42,150)"
-              fontSize="28px"
-            />
-            <Typography
-              fontWeight="600"
-              fontSize="1.5rem"
-              color="rgb(48,42,150)"
-            >
-              Track Clicks
-            </Typography>
-            <Typography>
-              Focus your or your client's efforts on the most promising
-              campaigns by taking actions based on comprehensive statistics.
-            </Typography>
-          </Box>
-          <Box
-            textAlign="center"
-            borderRadius="20px"
-            maxWidth="250px"
-            padding="20px"
-            height="200px"
-            display="flex"
-            flexDirection="column"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <FontAwesomeIcon
-              icon={faHeadset}
-              color="rgb(48,42,150)"
-              fontSize="28px"
-            />
-            <Typography
-              fontWeight="600"
-              fontSize="1.5rem"
-              color="rgb(48,42,150)"
-            >
-              Friendly Support
-            </Typography>
-            <Typography>
-              We really care about your success in using short links, so you
-              always get answers.
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-    </Box>
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-indigo-700 mb-4">A short link, infinite possibilities</h2>
+          <p className="text-xl mb-8">
+            With the advanced intelligent link shortening service, you can customize
+            your links and share them easily.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <FeatureCard
+            icon={faPenToSquare}
+            title="Custom Domains"
+            description="Track audience individually for each brand, website, or client by using your own domain or subdomain for link shortening."
+          />
+          <FeatureCard
+            icon={faChartColumn}
+            title="Track Clicks"
+            description="Focus your or your client's efforts on the most promising campaigns by taking actions based on comprehensive statistics."
+          />
+          <FeatureCard
+            icon={faHeadset}
+            title="Friendly Support"
+            description="We really care about your success in using short links, so you always get answers."
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default App;
+function FeatureCard({ icon, title, description }) {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6 text-center">
+      <FontAwesomeIcon icon={icon} className="text-4xl text-indigo-700 mb-4" />
+      <h3 className="text-xl font-bold text-indigo-700 mb-2">{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
+}
