@@ -22,6 +22,11 @@ func NewRedisCache(redisURL string) *RedisCache {
 	client := redis.NewClient(&redis.Options{
 		Addr: opt.Addr,
 	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err = client.Ping(ctx).Err(); err != nil {
+		panic(err)
+	}
 	return &RedisCache{client: client}
 }
 
