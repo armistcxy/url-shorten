@@ -44,6 +44,7 @@ func main() {
 
 	flag.Parse()
 
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 	var (
 		addr = fmt.Sprintf("%s:%d", *host, *port)
 		srv  = http.Server{
