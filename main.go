@@ -44,6 +44,7 @@ func main() {
 
 	flag.Parse()
 
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 	var (
 		addr = fmt.Sprintf("%s:%d", *host, *port)
 		srv  = http.Server{
@@ -58,8 +59,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	redisAddr := os.Getenv("REDIS_URL")
-	ca := cache.NewRedisCache(redisAddr)
+	redisURL := os.Getenv("REDIS_URL")
+	ca := cache.NewRedisCache(redisURL)
 
 	idfilter := bloom.NewWithEstimates(1_000_000, 0.01)
 

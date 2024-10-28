@@ -40,21 +40,33 @@ services:
   web: 
     build:
       context: ./
+    env_file:
+      - .env
+      - .default_env
     environment:
       - URL_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
     depends_on:
       db:
         condition: service_healthy
+      cache:
+        condition: service_started
     networks:
       - backend
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`localhost`)"
       - "traefik.http.services.web.loadbalancer.server.port=8080"
-
+  cache: 
+    image: redis:latest
+    container_name: redis_cache
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
   
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   backend:
