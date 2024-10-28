@@ -11,9 +11,16 @@ type RedisCache struct {
 	client *redis.Client
 }
 
-func NewRedisCache(addr string) *RedisCache {
+func NewRedisCache(redisURL string) *RedisCache {
+	// There is an error when using directly redis URL as address
+	// Use ParseURL instead as suggest from the issue below
+	// https://github.com/redis/go-redis/issues/864
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		panic(err)
+	}
 	client := redis.NewClient(&redis.Options{
-		Addr: addr,
+		Addr: opt.Addr,
 	})
 	return &RedisCache{client: client}
 }
