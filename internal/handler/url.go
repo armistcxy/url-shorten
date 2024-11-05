@@ -40,10 +40,10 @@ func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, idFil
 func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	id := parts[len(parts)-1]
-	if !uh.idFilter.Test([]byte(id)) { // if it return false => 100% element is not exist
-		http.Error(w, fmt.Sprintf("there's no url with id: %s", id), http.StatusNotFound)
-		return
-	}
+	// if !uh.idFilter.Test([]byte(id)) { // if it return false => 100% element is not exist
+	// 	http.Error(w, fmt.Sprintf("there's no url with id: %s", id), http.StatusNotFound)
+	// 	return
+	// }
 
 	// Next we check whether id appears in cache
 	cacheCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -93,7 +93,7 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Add shorten ID to Bloom Filter
-	uh.idFilter.Add([]byte(short.ID))
+	// uh.idFilter.Add([]byte(short.ID))
 
 	// Add k-v pair (id:origin_url) to cache for 1 hour
 	cacheCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
