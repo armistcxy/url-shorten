@@ -4,11 +4,11 @@ import NotFound from "./pages/NotFound";
 
 const routes = [
   {
-    path: "",
+    path: "/",
     component: Home,
   },
   {
-    path: "/preview",
+    path: "/preview/:id",
     component: Preview,
   },
   {
