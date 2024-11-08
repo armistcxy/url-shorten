@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 
 const Preview = () => {
-  return <div>ssssssssssssss</div>;
+  return <Box>ssssssssssssss</Box>;
 };
 
 export default Preview;

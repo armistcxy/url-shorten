@@ -1,5 +1,6 @@
 import Home from "./pages/Home";
 import Preview from "./pages/Preview";
+import NotFound from "./pages/NotFound";
 
 const routes = [
   {
@@ -9,6 +10,10 @@ const routes = [
   {
     path: "/preview",
     component: Preview,
+  },
+  {
+    path: "*",
+    component: NotFound,
   },
 ];
 
