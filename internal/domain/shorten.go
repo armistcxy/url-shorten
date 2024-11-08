@@ -29,13 +29,13 @@ func RandomString(length int) string {
 // Any idea ???
 
 const (
-	BASE int64 = 62
+	BASE uint64 = 62
 	// DIGIT_OFFSET     int64 = 0
 	// LOWERCASE_OFFSET int64 = 10
 	// UPPERCASE_OFFSET int64 = 36
 )
 
-func EncodeID(num int64) string {
+func EncodeID(num uint64) string {
 	var encoded []byte
 	for num > 0 {
 		encoded = append(encoded, characters[num%BASE])
@@ -49,10 +49,10 @@ func EncodeID(num int64) string {
 	return string(encoded)
 }
 
-func DecodeID(id string) int64 {
-	var num int64
+func DecodeID(id string) uint64 {
+	var num uint64
 	for i := range id {
-		num = num*62 + int64(char2order(id[i]))
+		num = num*62 + uint64(char2order(id[i]))
 	}
 	return num
 }

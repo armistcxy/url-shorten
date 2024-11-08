@@ -144,7 +144,7 @@ func checkPossiblePartition(db *bbolt.DB, start int64) (bool, int) {
 	return !exist, int(l - start)
 }
 
-func (pm *PartitionManager) GiveID() int64 {
+func (pm *PartitionManager) GiveID() uint64 {
 	// change this later for better distribute
 	paID := rand.IntN(DEFAULT_PARTITION_AMOUNT)
 
@@ -158,7 +158,7 @@ func (pm *PartitionManager) GiveID() int64 {
 		id, _ = pm.partitions[paID].giveID()
 	}
 
-	return id
+	return uint64(id)
 }
 
 // Partition represents a partition of IDs, with a bucket name, a starting ID, and the number of IDs used.
