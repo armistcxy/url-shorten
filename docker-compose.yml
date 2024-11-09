@@ -1,19 +1,19 @@
 services:
-  reverse-proxy:
-    image: traefik:v3.1
-    container_name: "traefik"
-    command: 
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false" # avoid unnecessary container exposed
-      - "--entryPoints.web.address=:80" 
-    ports:
-      - "80:80" # HTTP port
-      - "8080:8080" # Web UI (enabled by --api.insecure=true)
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - backend
+  # reverse-proxy:
+  #   image: traefik:v3.1
+  #   container_name: "traefik"
+  #   command: 
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false" # avoid unnecessary container exposed
+  #     - "--entryPoints.web.address=:80" 
+  #   ports:
+  #     - "80:80" # HTTP port
+  #     - "8080:8080" # Web UI (enabled by --api.insecure=true)
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   networks:
+  #     - backend
       
   db: 
     image: postgres:16-alpine
@@ -37,16 +37,44 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  background_db:
+    image: postgres:16-alpine
+    restart: always 
+    env_file:
+      - .env
+      - .default_env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${BACKGROUND_DB_NAME}
+      PGUSER: "postgres"
+    networks:
+      - backend
+    volumes:
+      - background_postgres_data:/var/lib/postgresql/data    
+    healthcheck:
+      test: ["CMD",  "pg_isready", "-U", "${DB_USER}", "-d", "${BACKGROUND_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   web: 
     build:
       context: ./
+    ports:
+      - 8080:8080
     env_file:
       - .env
       - .default_env
     environment:
       - URL_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
+      - RIVER_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${BACKGROUND_DB_HOST}:${DB_PORT}/${BACKGROUND_DB_NAME}?sslmode=disable
     depends_on:
       db:
+        condition: service_healthy
+      background_db:
         condition: service_healthy
       cache:
         condition: service_started
@@ -64,9 +92,28 @@ services:
     networks:
       - backend
   
+  background_worker:
+    build:
+      context: ./
+    env_file:
+      - .env
+      - .default_env
+    environment:
+      - URL_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
+      - RIVER_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${BACKGROUND_DB_HOST}:${DB_PORT}/${BACKGROUND_DB_NAME}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+      background_db:
+        condition: service_healthy
+    command: ["./worker"]
+    networks:
+      - backend
+
 volumes:
   postgres_data:
   redis_data:
+  background_postgres_data:
 
 networks:
   backend:

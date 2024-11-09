@@ -12,7 +12,7 @@ class J4TUser(HttpUser):
     
     @task
     def create_url(self): 
-        url = self.faker.name()
+        url = self.faker.url()
         response = self.client.post('/short', json={"origin": url})        
         body = response.json()
         id = body.get('id') 
@@ -22,5 +22,5 @@ class J4TUser(HttpUser):
     def get_url(self): 
         if len(self.ids) > 0:
             id = choice(self.ids)
-            response = self.client.get(f'http://localhost/short/{id}')
+            response = self.client.get(f'/short/{id}')
     
