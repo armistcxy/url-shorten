@@ -13,12 +13,19 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/armistcxy/shorten/internal/background"
 	"github.com/armistcxy/shorten/internal/cache"
 	"github.com/armistcxy/shorten/internal/handler"
 	"github.com/armistcxy/shorten/internal/idgen"
 	"github.com/armistcxy/shorten/internal/repository"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -51,8 +58,19 @@ func main() {
 		}
 	)
 
-	postgresDSN := os.Getenv("URL_DSN")
-	postgresURLRepo, err := repository.NewPostgresURLRepository(postgresDSN)
+	dbPool, err := pgxpool.New(context.Background(), os.Getenv("RIVER_DSN"))
+	if err != nil {
+		slog.Error("failed to create database pool", "error", err.Error())
+	}
+
+	riverClient, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+	if err != nil {
+		panic(err)
+	}
+
+	db := sqlx.MustConnect("postgres", os.Getenv("URL_DSN"))
+
+	postgresURLRepo, err := repository.NewPostgresURLRepository(db)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,37 +78,7 @@ func main() {
 	redisURL := os.Getenv("REDIS_URL")
 	ca := cache.NewRedisCache(redisURL)
 
-	// idfilter := bloom.NewWithEstimates(1_000_000, 0.01)
-
-	// file, err := os.OpenFile("bloomfilter.bin", os.O_RDONLY, 0644)
-	// if err != nil {
-	// 	slog.Error("no previous bloom filter file", "error", err.Error())
-	// }
-	// if file != nil && err == nil {
-	// 	r := bufio.NewReader(file)
-	// 	_, err := idfilter.ReadFrom(r)
-	// 	if err != nil {
-	// 		slog.Error("failed to read from file for bloom filter previous data", "error", err.Error())
-	// 	} else {
-	// 		log.Print("read previous bloom filter data successfully")
-	// 	}
-	// 	file.Close()
-	// }
-
-	// Write bloomfitler to binary file after server shutdown
-	// defer func() {
-	// 	file, err := os.OpenFile("bloomfilter.bin", os.O_CREATE|os.O_WRONLY, 0644)
-	// 	if err != nil {
-	// 		slog.Error("failed to create file for writing bloom filter data", "error", err.Error())
-	// 	}
-	// 	_, err = idfilter.WriteTo(file)
-	// 	if err != nil {
-	// 		slog.Error("failed to write bloom filter data", "error", err.Error())
-	// 		file.Close()
-	// 	}
-	// }()
-
-	idgen := idgen.NewRandomIDGenerator()
+	idgen := idgen.NewSeqIDGenerator(db, 0, 12, riverClient)
 
 	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, nil, ca)
 	{
@@ -147,10 +135,10 @@ func main() {
 	go func() {
 		quit := make(chan os.Signal, 1)
 
-		signal.Notify(quit, os.Interrupt)
+		signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 		<-quit
 
-		waitTime := 1 * time.Second
+		waitTime := 10 * time.Second
 		ctx, cancel := context.WithTimeout(context.Background(), waitTime)
 		defer cancel()
 
@@ -158,6 +146,14 @@ func main() {
 			slog.Error("Error when shutdown HTTP server", "error", err.Error())
 		}
 
+		// After handling all the remain requests: update maximum ID for each range
+		updateIDs := idgen.RetriveLastUsedIds()
+		for _, id := range updateIDs {
+			if id != 0 {
+				riverClient.Insert(context.Background(),
+					background.AddLastUsedIDArgs{LastUsedID: id}, nil)
+			}
+		}
 		close(done)
 	}()
 

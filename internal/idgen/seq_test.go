@@ -17,7 +17,7 @@ func TestNewSeqIDGenerator(t *testing.T) {
 		numberOfShards int      = 12
 	)
 
-	sg := NewSeqIDGenerator(db, start, numberOfShards)
+	sg := NewSeqIDGenerator(db, start, numberOfShards, nil)
 	for i := range sg.shards {
 		assert.NotNil(t, &sg.shards[i])
 		t.Logf("Shard %d starts from: %d, end at %d, last used id: %d\n", i, sg.shards[i].start, sg.shards[i].end, sg.shards[i].cur)
@@ -118,5 +118,5 @@ func prepareSeqIDGenerator() *SeqIDGenerator {
 		numberOfShards int      = 12
 	)
 
-	return NewSeqIDGenerator(db, start, numberOfShards)
+	return NewSeqIDGenerator(db, start, numberOfShards, nil)
 }

@@ -1,11 +1,15 @@
 package idgen
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
+	"github.com/armistcxy/shorten/internal/background"
 	"github.com/armistcxy/shorten/internal/domain"
+	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
+	"github.com/riverqueue/river"
 )
 
 // Backed by PostgreSQL
@@ -13,12 +17,13 @@ type SeqIDGenerator struct {
 	shards  []ShardIDManager
 	current uint64
 	db      *sqlx.DB
+	rc      *river.Client[pgx.Tx]
 	mu      sync.Mutex
 }
 
 const SHARD_SIZE = 1 << 25
 
-func NewSeqIDGenerator(db *sqlx.DB, start uint64, numberOfShards int) *SeqIDGenerator {
+func NewSeqIDGenerator(db *sqlx.DB, start uint64, numberOfShards int, rc *river.Client[pgx.Tx]) *SeqIDGenerator {
 	shards := make([]ShardIDManager, numberOfShards)
 	var (
 		lID     uint64 = 0
@@ -44,6 +49,7 @@ func NewSeqIDGenerator(db *sqlx.DB, start uint64, numberOfShards int) *SeqIDGene
 		shards:  shards,
 		current: current,
 		db:      db,
+		rc:      rc,
 		mu:      sync.Mutex{},
 	}
 }
@@ -83,6 +89,12 @@ func (sg *SeqIDGenerator) GenerateID() string {
 						sg.current += SHARD_SIZE
 					}
 					sg.mu.Unlock()
+					_, err := sg.rc.Insert(context.Background(), background.AddLastUsedIDArgs{
+						LastUsedID: sg.shards[i].end,
+					}, nil)
+					if err != nil {
+						slog.Error("failed to enqueue job", "error", err.Error())
+					}
 					sg.shards[i] = NewShardIDManager(sg.current-SHARD_SIZE, sg.current-1, lID)
 					break
 				}
@@ -92,6 +104,18 @@ func (sg *SeqIDGenerator) GenerateID() string {
 		}
 	}
 
+}
+
+func (sg *SeqIDGenerator) RetriveLastUsedIds() []uint64 {
+	ids := make([]uint64, len(sg.shards))
+	for i := range ids {
+		if sg.shards[i].cur < sg.shards[i].start {
+			ids[i] = uint64(0) // no update
+		} else {
+			ids[i] = sg.shards[i].cur
+		}
+	}
+	return ids
 }
 
 type ShardIDManager struct {

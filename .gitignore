@@ -4,3 +4,5 @@ script.js
 node_modules
 bbolt-shorten.db
 bloomfilter.bin
+__pycache__
+venv
