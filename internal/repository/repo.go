@@ -12,17 +12,15 @@ type PostgresURLRepository struct {
 	db *sqlx.DB
 }
 
-func NewPostgresURLRepository(dsn string) (*PostgresURLRepository, error) {
-	db, err := sqlx.Connect("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
+func NewPostgresURLRepository(db *sqlx.DB) (*PostgresURLRepository, error) {
 	initTables(db)
 	return &PostgresURLRepository{
 		db: db,
 	}, nil
 }
 
+// Not encourage to do this
+// Note that this is redundant work just to make sure that db schema is up to date
 func initTables(db *sqlx.DB) {
 	createURLTableQuery := `
 		CREATE TABLE IF NOT EXISTS urls (
@@ -32,6 +30,10 @@ func initTables(db *sqlx.DB) {
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_urls_id ON urls (id);
+
+		CREATE TABLE IF NOT EXISTS ids (
+			id BIGINT PRIMARY KEY
+		);
 	`
 	_ = db.MustExec(createURLTableQuery)
 }
