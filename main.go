@@ -150,8 +150,11 @@ func main() {
 		updateIDs := idgen.RetriveLastUsedIds()
 		for _, id := range updateIDs {
 			if id != 0 {
-				riverClient.Insert(context.Background(),
+				_, err := riverClient.Insert(context.Background(),
 					background.AddLastUsedIDArgs{LastUsedID: id}, nil)
+				if err != nil {
+					slog.Error("failed to enqueue 'AddLastUsedID' job", "error", err.Error())
+				}
 			}
 		}
 		close(done)
