@@ -6,3 +6,4 @@ bbolt-shorten.db
 bloomfilter.bin
 __pycache__
 venv
+results.txt

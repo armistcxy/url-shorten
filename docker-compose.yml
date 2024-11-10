@@ -1,19 +1,19 @@
 services:
-  # reverse-proxy:
-  #   image: traefik:v3.1
-  #   container_name: "traefik"
-  #   command: 
-  #     - "--api.insecure=true"
-  #     - "--providers.docker=true"
-  #     - "--providers.docker.exposedbydefault=false" # avoid unnecessary container exposed
-  #     - "--entryPoints.web.address=:80" 
-  #   ports:
-  #     - "80:80" # HTTP port
-  #     - "8080:8080" # Web UI (enabled by --api.insecure=true)
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   networks:
-  #     - backend
+  reverse-proxy:
+    image: traefik:v3.1
+    container_name: "traefik"
+    command: 
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false" # avoid unnecessary container exposed
+      - "--entryPoints.web.address=:80" 
+    ports:
+      - "80:80" # HTTP port
+      - "8080:8080" # Web UI (enabled by --api.insecure=true)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
       
   db: 
     image: postgres:16-alpine
@@ -63,8 +63,8 @@ services:
   web: 
     build:
       context: ./
-    ports:
-      - 8080:8080
+    # ports:
+    #   - 8080:8080
     env_file:
       - .env
       - .default_env

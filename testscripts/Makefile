@@ -1,4 +1,4 @@
-URL := http://127.0.0.1:8080/short
+URL := http://localhost/short
 CONCURRENCY := 2000
 REQUESTS := 10000
 OUTPUT := results.txt 
