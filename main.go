@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -89,47 +86,6 @@ func main() {
 		http.Handle("GET /short/{id}", getURLHandler)
 	}
 
-	// Warning: This is just a work around to deal with my concurrent problem with load testing using my tool (https://github.com/armistcxy/go-load-testing)
-	// My tool doesn't have dynamic query value feature yet !! Big update soon
-	waCreateShortURLHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		url := r.URL.Query().Get("url")
-		if url == "" {
-			http.Error(w, "Missing 'url' parameter", http.StatusBadRequest)
-			return
-		}
-
-		// create json payload
-		payload := map[string]string{"origin": url}
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("fail to create json payload, error: %s", err), http.StatusInternalServerError)
-			return
-		}
-
-		req, err := http.NewRequest("POST", fmt.Sprintf("http://%s/short", addr), bytes.NewBuffer(jsonPayload))
-		if err != nil {
-			http.Error(w, fmt.Sprintf("fail to create new request, error: %s", err), http.StatusInternalServerError)
-			return
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("fail to forward request, error: %s", err), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(resp.StatusCode)
-
-		_, err = io.Copy(w, resp.Body)
-		if err != nil {
-			http.Error(w, "fail to copy response body", http.StatusInternalServerError)
-			return
-		}
-	})
-	http.Handle("POST /create", waCreateShortURLHandler)
 	// Gracefully shutdown
 	done := make(chan struct{})
 	go func() {
