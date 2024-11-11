@@ -45,7 +45,7 @@ func main() {
 	// _ = make([]byte, 10<<30)
 	host := flag.String("host", "", "Host of HTTP server")
 	port := flag.Int("port", 8080, "Port that HTTP server listen to")
-
+	rateLimit := flag.Bool("ratelimit", false, "Enable rate limit or not")
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Llongfile)
@@ -58,22 +58,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Rate limit based on IP address (IP is taken from "X-Forwareded-For" header)
-	// https://pkg.go.dev/github.com/sethvargo/go-limiter/httplimit#IPKeyFunc
-	rateLimitMiddleware, err := httplimit.NewMiddleware(store, httplimit.IPKeyFunc("X-Forwarded-For"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// consider using RateLimit in Traefik: https://doc.traefik.io/traefik/middlewares/http/ratelimit/
 
 	var (
 		addr = fmt.Sprintf("%s:%d", *host, *port)
 		srv  = http.Server{
 			Addr:    addr,
-			Handler: rateLimitMiddleware.Handle((ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware))),
+			Handler: (ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
 		}
 	)
+
+	if *rateLimit {
+		// Rate limit based on IP address (IP is taken from "X-Forwareded-For" header)
+		// https://pkg.go.dev/github.com/sethvargo/go-limiter/httplimit#IPKeyFunc
+		rateLimitMiddleware, err := httplimit.NewMiddleware(store, httplimit.IPKeyFunc("X-Forwarded-For"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		srv.Handler = rateLimitMiddleware.Handle(srv.Handler)
+	}
 
 	dbPool, err := pgxpool.New(context.Background(), os.Getenv("RIVER_DSN"))
 	if err != nil {
