@@ -42,6 +42,7 @@ func (pr *PostgresURLRepository) Create(ctx context.Context, id string, url stri
 	insertURLQuery := `
 		INSERT INTO urls (id, original_url) VALUES ($1, $2) RETURNING created_at;
 	`
+	// Consideration: Removing `created_at` field
 	short := &domain.ShortURL{
 		ID:     id,
 		Origin: url,
