@@ -23,6 +23,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/sethvargo/go-limiter/httplimit"
+	"github.com/sethvargo/go-limiter/memorystore"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -47,11 +49,29 @@ func main() {
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Llongfile)
+
+	store, err := memorystore.New(&memorystore.Config{
+		Tokens:   10,
+		Interval: time.Second,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Rate limit based on IP address (IP is taken from "X-Forwareded-For" header)
+	// https://pkg.go.dev/github.com/sethvargo/go-limiter/httplimit#IPKeyFunc
+	rateLimitMiddleware, err := httplimit.NewMiddleware(store, httplimit.IPKeyFunc("X-Forwarded-For"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// consider using RateLimit in Traefik: https://doc.traefik.io/traefik/middlewares/http/ratelimit/
+
 	var (
 		addr = fmt.Sprintf("%s:%d", *host, *port)
 		srv  = http.Server{
 			Addr:    addr,
-			Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
+			Handler: rateLimitMiddleware.Handle((ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware))),
 		}
 	)
 

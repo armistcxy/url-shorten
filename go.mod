@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/riverqueue/river v0.14.1
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
+	github.com/sethvargo/go-limiter v1.0.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
 	golang.org/x/time v0.7.0
