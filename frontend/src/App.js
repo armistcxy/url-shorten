@@ -18,14 +18,14 @@ export default function App() {
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/short",
+        "http://localhost/short",
         { origin: originalUrl },
         { headers: { "Content-Type": "application/json" } }
       );
 
       if (response.status === 200) {
         console.log(response.data);
-        const baseUrl = "http://localhost:8080/short";
+        const baseUrl = "http://localhost/short";
         setShortUrl(`${baseUrl}/${response.data.id}`);
         setErrorMessage("");
       }
@@ -38,13 +38,18 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center text-indigo-700 mb-4">Create Short Links!</h1>
+        <h1 className="text-4xl font-bold text-center text-indigo-700 mb-4">
+          Create Short Links!
+        </h1>
         <p className="text-xl text-center mb-8">
-          _ is a custom short link personalization tool that enables you to target,
-          engage, and drive more customers. Get started now.
+          _ is a custom short link personalization tool that enables you to
+          target, engage, and drive more customers. Get started now.
         </p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-lg shadow-md p-6 mb-8"
+        >
           <div className="flex flex-col sm:flex-row items-center bg-gray-100 rounded-lg p-2">
             <FontAwesomeIcon icon={faLink} className="text-gray-500 mr-2" />
             <input
@@ -65,7 +70,12 @@ export default function App() {
           {shortUrl && (
             <p className="mt-4 text-lg">
               Shortened URL:{" "}
-              <a href={shortUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+              <a
+                href={shortUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
                 {shortUrl}
               </a>
             </p>
@@ -74,10 +84,12 @@ export default function App() {
         </form>
 
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-indigo-700 mb-4">A short link, infinite possibilities</h2>
+          <h2 className="text-3xl font-bold text-indigo-700 mb-4">
+            A short link, infinite possibilities
+          </h2>
           <p className="text-xl mb-8">
-            With the advanced intelligent link shortening service, you can customize
-            your links and share them easily.
+            With the advanced intelligent link shortening service, you can
+            customize your links and share them easily.
           </p>
         </div>
 
