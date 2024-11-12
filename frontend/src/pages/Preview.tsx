@@ -66,23 +66,23 @@ const Preview: React.FC = () => {
           <Typography variant="h6" sx={{ marginBottom: 2 }}>
             You are being redirected to:
           </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              marginBottom: 2,
-              color: "blue",
-              wordWrap: "break-word",
-              fontSize: "1.5rem",
-              cursor: "pointer",
-              textDecoration: "none",
-              "&:hover": {
-                textDecoration: "underline",
-              },
-            }}
+          <a
+            href={originalUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={handleLinkClick}
+            style={{
+              fontSize: "1.5rem",
+              color: "blue",
+              textDecoration: "none",
+              cursor: "pointer",
+              transition: "text-decoration 0.3s ease",
+            }}
+            onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
+            onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
           >
             {originalUrl}
-          </Typography>
+          </a>
           <Typography variant="body1" sx={{ marginBottom: 2 }}>
             You will be redirected in {timer} seconds...
           </Typography>
