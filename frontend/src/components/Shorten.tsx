@@ -4,11 +4,13 @@ import { useState } from "react";
 import axios from "axios";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLink } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 
 const Shorten = () => {
   const [originalUrl, setOriginalUrl] = useState("");
   const [shortUrl, setShortUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ const Shorten = () => {
 
       if (response.status === 200) {
         console.log(response.data);
-        const baseUrl = "http://localhost/short";
+        const baseUrl = "http://localhost:3000/short";
         setShortUrl(`${baseUrl}/${response.data.id}`);
         setErrorMessage("");
       }
@@ -30,6 +32,13 @@ const Shorten = () => {
       setErrorMessage("Failed to create short URL");
       console.error("Error:", error);
     }
+  };
+
+  const handleClick = (e) => {
+    e.preventDefault();
+    const id = shortUrl.split("/").pop();
+    // Open the preview route in a new tab
+    window.open(`/short/${id}`, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -64,8 +73,7 @@ const Shorten = () => {
             Shortened URL:{" "}
             <a
               href={shortUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={handleClick}
               className="text-blue-600 hover:underline"
             >
               {shortUrl}
