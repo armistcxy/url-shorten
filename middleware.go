@@ -42,6 +42,7 @@ func HTTPLoggingMiddleware(next http.Handler) http.Handler {
 			requestBodySize: r.ContentLength,
 			referer:         r.Referer(),
 			ipaddr:          realip.FromRequest(r), // https://github.com/tomasen/realip
+			url:             r.URL.String(),
 			code:            metrics.Code,
 			responseSize:    metrics.Written,
 			duration:        metrics.Duration,
@@ -58,6 +59,7 @@ type HTTPInfo struct {
 	referer         string
 	requestBodySize int64
 	ipaddr          string
+	url             string
 	code            int
 	responseSize    int64
 	duration        time.Duration
@@ -73,6 +75,7 @@ func logHTTPInfo(info *HTTPInfo) {
 	strBuilder.WriteString(fmt.Sprintf("referer: %s\n", info.referer))
 	strBuilder.WriteString(fmt.Sprintf("requestBodySize: %d bytes\n", info.requestBodySize))
 	strBuilder.WriteString(fmt.Sprintf("ipaddr: %s\n", info.ipaddr))
+	strBuilder.WriteString(fmt.Sprintf("url: %s\n", info.url))
 	strBuilder.WriteString(fmt.Sprintf("code: %d\n", info.code))
 	strBuilder.WriteString(fmt.Sprintf("responseSize: %d bytes\n", info.responseSize))
 	strBuilder.WriteString(fmt.Sprintf("duration: %v\n", info.duration))

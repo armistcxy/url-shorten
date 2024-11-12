@@ -43,7 +43,7 @@ BenchmarkGenerateRandomStringLength6-12           109509             10719 ns/op
 // Just use Length = 6 => there are 62 ^ 6 possible URLs
 
 func TestDecodeID(t *testing.T) {
-	num := int64(rand.IntN(100000000))
+	num := uint64(rand.IntN(100000000))
 	assert.Equal(t, num, DecodeID(EncodeID(num)))
 }
 
@@ -57,9 +57,9 @@ func TestEncodeID(t *testing.T) {
 // Fix1: Because the result variety too much, I will use divide and conqueror range
 func benchmarkEncodeID(b *testing.B, min int64, max int64) {
 	var id string
-	nums := make([]int64, 1000)
+	nums := make([]uint64, 1000)
 	for i := range nums {
-		nums[i] = rand.Int64N(max-min) + min
+		nums[i] = uint64(rand.Int64N(max-min) + min)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -91,7 +91,7 @@ func BenchmarkEncodeIDWithSuperBigNum(b *testing.B) {
 // Same problem with BenchmarkEncodeID
 // Note: Already fixed
 func benchmarkDecodeID(b *testing.B, len int) {
-	var num int64
+	var num uint64
 	ids := make([]string, 1000)
 	for i := range ids {
 		ids[i] = RandomString(len)
