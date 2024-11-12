@@ -15,14 +15,14 @@ const Shorten = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/short",
+        "http://localhost/short",
         { origin: originalUrl },
         { headers: { "Content-Type": "application/json" } }
       );
 
       if (response.status === 200) {
         console.log(response.data);
-        const baseUrl = "http://localhost:8080/short";
+        const baseUrl = "http://localhost/short";
         setShortUrl(`${baseUrl}/${response.data.id}`);
         setErrorMessage("");
       }
