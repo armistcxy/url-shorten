@@ -1,15 +1,13 @@
 import "../App.css";
 import Header from "../components/Header";
 import Shorten from "../components/Shorten";
-import Footer from "../components/Footer";
 
 const Home = () => {
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-50 p-4 sm:p-8 animate-gradient-x">
+      <div className="max-w-3xl mx-auto text-center">
         <Header />
         <Shorten />
-        <Footer />
       </div>
     </div>
   );
