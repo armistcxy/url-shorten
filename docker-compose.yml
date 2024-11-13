@@ -14,6 +14,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - backend
+      - rabbitmq_network
       
   db: 
     image: postgres:16-alpine
@@ -31,6 +32,8 @@ services:
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
     healthcheck:
       test: ["CMD",  "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
       interval: 10s
@@ -78,12 +81,35 @@ services:
         condition: service_healthy
       cache:
         condition: service_started
+      rabbitmq:
+        condition: service_started
+    
     networks:
       - backend
+      - rabbitmq_network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`localhost`)"
       - "traefik.http.services.web.loadbalancer.server.port=8080"
+
+  fraud-detect:
+    build:
+      context: ./fraud-detection
+      dockerfile: Dockerfile
+    environment:
+      - URL_DSN=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
+    networks:
+      - backend
+      - rabbitmq_network
+    env_file:
+      - .env
+      - .default_env
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      db:
+        condition: service_healthy
+
   cache: 
     image: redis:latest
     container_name: redis_cache
@@ -126,6 +152,15 @@ services:
     - /var/run/docker.sock:/var/run/docker.sock:ro
     - /etc/machine-id:/etc/machine-id:ro
     - /var/lib/dbus/machine-id:/var/lib/dbus/machine-id:ro
+  
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports: 
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - rabbitmq_network
 
 volumes:
   postgres_data:
@@ -134,3 +169,4 @@ volumes:
 
 networks:
   backend:
+  rabbitmq_network:
