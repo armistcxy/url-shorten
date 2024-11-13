@@ -8,12 +8,14 @@ import (
 type ShortURL struct {
 	ID        string    `json:"id"`
 	Origin    string    `json:"origin"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	Fraud     bool      `json:"fraud"`
 }
 
 type URLRepository interface {
 	Create(ctx context.Context, id string, url string) (*ShortURL, error)
 	Get(ctx context.Context, id string) (string, error)
+	RetrieveFraud(ctx context.Context, id string) (bool, error)
 }
 
 type IDGenerator interface {
