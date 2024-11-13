@@ -17,10 +17,12 @@ import (
 	"github.com/armistcxy/shorten/internal/cache"
 	"github.com/armistcxy/shorten/internal/handler"
 	"github.com/armistcxy/shorten/internal/idgen"
+	"github.com/armistcxy/shorten/internal/msq"
 	"github.com/armistcxy/shorten/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/sethvargo/go-limiter/httplimit"
@@ -101,13 +103,23 @@ func main() {
 
 	idgen := idgen.NewSeqIDGenerator(db, 0, 12, riverClient)
 
-	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, nil, ca)
+	rabbitMQURL := os.Getenv("RABBITMQ_URL")
+	conn, err := amqp.Dial(rabbitMQURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	urlPublisher := msq.NewURLPublisher(conn)
+
+	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca, urlPublisher)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)
 
 		getURLHandler := http.HandlerFunc(urlHandler.GetOriginURLHandle)
 		http.Handle("GET /short/{id}", getURLHandler)
+
+		retrieveFraudHandler := http.HandlerFunc(urlHandler.RetrieveFraudURLHandle)
+		http.Handle("GET /fraud/{id}", retrieveFraudHandler)
 	}
 
 	// Gracefully shutdown
