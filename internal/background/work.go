@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
@@ -53,6 +55,72 @@ func updateLastUsedID(db *sqlx.DB, id uint64) error {
 		return fmt.Errorf("failed to insert ID %d", id)
 	}
 	slog.Info("Update last used id successfully", "id", id)
+	return nil
+}
+
+type IncreaseCountArgs struct {
+	ID string
+}
+
+func (IncreaseCountArgs) Kind() string {
+	return "increase_count"
+}
+
+type IncreaseCountWorker struct {
+	db      *sqlx.DB
+	mu      sync.Mutex
+	counter map[string]int
+	river.WorkerDefaults[IncreaseCountArgs]
+}
+
+func NewIncreaseCountWorker(db *sqlx.DB) *IncreaseCountWorker {
+	return &IncreaseCountWorker{
+		db:      db,
+		mu:      sync.Mutex{},
+		counter: make(map[string]int),
+	}
+}
+
+func (iw *IncreaseCountWorker) Work(ctx context.Context, job *river.Job[IncreaseCountArgs]) error {
+	iw.mu.Lock()
+	defer iw.mu.Unlock()
+	iw.counter[job.Args.ID]++
+	return nil
+}
+
+var (
+	batchUpdateQuery = `
+		UPDATE urls AS u
+		SET count = u.count + c.new_count
+		FROM (VALUES %s) AS c(id, new_count)
+		WHERE u.id = c.id;
+	`
+)
+
+func (iw *IncreaseCountWorker) BatchUpdate() error {
+	iw.mu.Lock()
+	defer iw.mu.Unlock()
+
+	valuesBuilder := strings.Builder{}
+	params := []interface{}{}
+
+	i := 1
+	for id, cnt := range iw.counter {
+		valuesBuilder.WriteString(fmt.Sprintf("($%d, $%d),", i, i+1))
+		params = append(params, id, cnt)
+		i++
+	}
+
+	values := valuesBuilder.String()
+	values = values[:len(values)-1]
+
+	query := fmt.Sprintf(batchUpdateQuery, values)
+
+	if _, err := iw.db.Exec(query, params...); err != nil {
+		return err
+	}
+
+	iw.counter = make(map[string]int)
 	return nil
 }
 
