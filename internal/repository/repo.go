@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/jmoiron/sqlx"
@@ -103,4 +106,23 @@ func (pr *PostgresURLRepository) GetView(ctx context.Context, id string) (int, e
 		return 0, err
 	}
 	return view, nil
+}
+
+func (pr *PostgresURLRepository) BatchCreate(ctx context.Context, inputs []domain.CreateInput) error {
+	byteBuffer := bytes.NewBufferString(`INSERT INTO urls (id, original_url) VALUES `)
+	tuples := make([]string, len(inputs))
+	for i := range tuples {
+		tuples[i] = prepareEach(inputs[i])
+	}
+	byteBuffer.WriteString(strings.Join(tuples, ","))
+
+	query := byteBuffer.String()
+	if _, err := pr.db.Exec(query); err != nil {
+		return err
+	}
+	return nil
+}
+
+func prepareEach(input domain.CreateInput) string {
+	return fmt.Sprintf("('%s', '%s')", input.ID, input.URL)
 }

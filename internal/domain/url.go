@@ -17,8 +17,14 @@ type URLRepository interface {
 	Get(ctx context.Context, id string) (string, error)
 	RetrieveFraud(ctx context.Context, id string) (bool, error)
 	GetView(ctx context.Context, id string) (int, error)
+	BatchCreate(ctx context.Context, inputs []CreateInput) error
 }
 
 type IDGenerator interface {
 	GenerateID() string
+}
+
+type CreateInput struct {
+	ID  string
+	URL string
 }

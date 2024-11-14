@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/armistcxy/shorten/internal/background"
@@ -26,15 +27,20 @@ type URLHandler struct {
 	cache       cache.Cache
 	pub         *msq.URLPublisher
 	riverClient *river.Client[pgx.Tx]
+	inputs      []domain.CreateInput
+	mu          sync.Mutex
 }
 
-func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache, pub *msq.URLPublisher, riverClient *river.Client[pgx.Tx]) *URLHandler {
+func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache,
+	pub *msq.URLPublisher, riverClient *river.Client[pgx.Tx]) *URLHandler {
 	return &URLHandler{
 		urlRepo:     urlRepo,
 		idGen:       idGen,
 		cache:       cache,
 		pub:         pub,
 		riverClient: riverClient,
+		inputs:      make([]domain.CreateInput, 0),
+		mu:          sync.Mutex{},
 	}
 }
 
@@ -76,12 +82,12 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 
 	id := uh.idGen.GenerateID()
 
-	short, err := uh.urlRepo.Create(context.Background(), id, form.Origin)
-	if err != nil {
-		slog.Error("failed to insert url to database", "error", err.Error())
-		http.Error(w, fmt.Sprintf("failed when creating short url, error: %s", err), http.StatusInternalServerError)
-		return
-	}
+	// short, err := uh.urlRepo.Create(context.Background(), id, form.Origin)
+	// if err != nil {
+	// 	slog.Error("failed to insert url to database", "error", err.Error())
+	// 	http.Error(w, fmt.Sprintf("failed when creating short url, error: %s", err), http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// Add k-v pair (id:origin_url) to cache for 5 minutes
 	cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -99,9 +105,13 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 		}, nil); err != nil {
 			slog.Error("failed to enqueue increase view jobs", "url_id", id, "error", err.Error())
 		}
+		uh.mu.Lock()
+		defer uh.mu.Unlock()
+		uh.inputs = append(uh.inputs, domain.CreateInput{ID: id, URL: form.Origin})
 	}()
 
-	util.EncodeJSON(w, short)
+	util.EncodeJSON(w, map[string]interface{}{"id": id, "origin": form.Origin})
+	// util.EncodeJSON(w, short)
 }
 
 type CreateShortForm struct {
@@ -133,4 +143,20 @@ func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	util.EncodeJSON(w, map[string]interface{}{"count": count})
+}
+
+func (uh *URLHandler) BatchCreate() {
+	start := time.Now()
+	for {
+		uh.mu.Lock()
+		if len(uh.inputs) >= 1000 || (time.Since(start) >= 5*time.Second && len(uh.inputs) > 0) {
+			if err := uh.urlRepo.BatchCreate(context.Background(), uh.inputs); err != nil {
+				slog.Error("failed to perform batch create", "error", err.Error())
+				// enqueue to background process to retry batch creata again
+			}
+			start = time.Now()
+			uh.inputs = make([]domain.CreateInput, 0)
+		}
+		uh.mu.Unlock()
+	}
 }
