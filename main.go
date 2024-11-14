@@ -106,6 +106,9 @@ func main() {
 
 		retrieveFraudHandler := http.HandlerFunc(urlHandler.RetrieveFraudURLHandle)
 		http.Handle("GET /fraud/{id}", retrieveFraudHandler)
+
+		getViewHandler := http.HandlerFunc(urlHandler.GetURLView)
+		http.Handle("Get /view/{id}", getViewHandler)
 	}
 
 	// Gracefully shutdown

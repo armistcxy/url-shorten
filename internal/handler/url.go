@@ -115,9 +115,22 @@ func (uh *URLHandler) RetrieveFraudURLHandle(w http.ResponseWriter, r *http.Requ
 	fraud, err := uh.urlRepo.RetrieveFraud(context.Background(), id)
 	if err != nil {
 		slog.Error("fail to retrieve fraud from database", "error", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	util.EncodeJSON(w, map[string]interface{}{"fraud": fraud})
+}
+
+func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	id := parts[len(parts)-1]
+
+	count, err := uh.urlRepo.GetView(context.Background(), id)
+	if err != nil {
+		slog.Error("fail to get view from database", "error", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	util.EncodeJSON(w, map[string]interface{}{"count": count})
 }

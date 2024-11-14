@@ -16,6 +16,7 @@ type URLRepository interface {
 	Create(ctx context.Context, id string, url string) (*ShortURL, error)
 	Get(ctx context.Context, id string) (string, error)
 	RetrieveFraud(ctx context.Context, id string) (bool, error)
+	GetView(ctx context.Context, id string) (int, error)
 }
 
 type IDGenerator interface {
