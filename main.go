@@ -109,6 +109,8 @@ func main() {
 
 		getViewHandler := http.HandlerFunc(urlHandler.GetURLView)
 		http.Handle("Get /view/{id}", getViewHandler)
+
+		go urlHandler.BatchCreate()
 	}
 
 	// Gracefully shutdown
