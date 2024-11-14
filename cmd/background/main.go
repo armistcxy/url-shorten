@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/armistcxy/shorten/internal/background"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,11 +20,11 @@ func main() {
 	riverDSN := os.Getenv("RIVER_DSN")
 	dbPool, err := pgxpool.New(context.Background(), riverDSN)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := background.Migrate(context.Background(), dbPool); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	urlDSN := os.Getenv("URL_DSN")
@@ -30,6 +32,20 @@ func main() {
 
 	workers := river.NewWorkers()
 	river.AddWorker(workers, background.NewAddLastUsedIDWorker(db))
+
+	incCntWorker := background.NewIncreaseCountWorker(db)
+	river.AddWorker(workers, incCntWorker)
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			if err := incCntWorker.BatchUpdate(); err != nil {
+				slog.Error("failed to perform batch update on increasing 'count' field")
+			}
+		}
+	}()
 
 	riverClient, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{
 		Queues: map[string]river.QueueConfig{
@@ -39,11 +55,11 @@ func main() {
 	})
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err = riverClient.Start(context.Background()); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	log.Println("Background worker has started working")

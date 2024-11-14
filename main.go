@@ -52,7 +52,7 @@ func main() {
 		addr = fmt.Sprintf("%s:%d", *host, *port)
 		srv  = http.Server{
 			Addr:    addr,
-			Handler: (ApplyChain(http.DefaultServeMux, CORS, HTTPLoggingMiddleware)),
+			Handler: CORS(ApplyChain(http.DefaultServeMux, HTTPLoggingMiddleware)),
 		}
 	)
 
@@ -96,7 +96,7 @@ func main() {
 	}
 	urlPublisher := msq.NewURLPublisher(conn)
 
-	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca, urlPublisher)
+	urlHandler := handler.NewURLHandler(postgresURLRepo, idgen, ca, urlPublisher, riverClient)
 	{
 		createShortURLHandler := http.HandlerFunc(urlHandler.CreateShortURLHandle)
 		http.Handle("POST /short", createShortURLHandler)
@@ -106,6 +106,9 @@ func main() {
 
 		retrieveFraudHandler := http.HandlerFunc(urlHandler.RetrieveFraudURLHandle)
 		http.Handle("GET /fraud/{id}", retrieveFraudHandler)
+
+		getViewHandler := http.HandlerFunc(urlHandler.GetURLView)
+		http.Handle("Get /view/{id}", getViewHandler)
 	}
 
 	// Gracefully shutdown

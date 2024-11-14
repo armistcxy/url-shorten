@@ -27,7 +27,8 @@ func initTables(db *sqlx.DB) {
 			id TEXT PRIMARY KEY,
 			original_url TEXT NOT NULL,
 			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-			fraud BOOLEAN DEFAULT true
+			fraud BOOLEAN DEFAULT false,
+			count INTEGER DEFAULT 0
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_urls_id ON urls (id);
@@ -86,4 +87,20 @@ func (pr *PostgresURLRepository) RetrieveFraud(ctx context.Context, id string) (
 		return false, err
 	}
 	return fraud, nil
+}
+
+var (
+	getViewQuery = `
+		SELECT count
+		FROM urls
+		WHERE id=$1
+	`
+)
+
+func (pr *PostgresURLRepository) GetView(ctx context.Context, id string) (int, error) {
+	var view int
+	if err := pr.db.GetContext(ctx, &view, getViewQuery, id); err != nil {
+		return 0, err
+	}
+	return view, nil
 }

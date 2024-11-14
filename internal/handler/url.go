@@ -8,28 +8,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/armistcxy/shorten/internal/background"
 	"github.com/armistcxy/shorten/internal/cache"
 	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/armistcxy/shorten/internal/msq"
 	"github.com/armistcxy/shorten/internal/util"
+	"github.com/jackc/pgx/v5"
+	"github.com/riverqueue/river"
 )
 
 // This will deal with 2 end points
 // /short/:id GET => Return original url
 // /create?url= POST => Return short url
 type URLHandler struct {
-	urlRepo domain.URLRepository
-	idGen   domain.IDGenerator
-	cache   cache.Cache
-	pub     *msq.URLPublisher
+	urlRepo     domain.URLRepository
+	idGen       domain.IDGenerator
+	cache       cache.Cache
+	pub         *msq.URLPublisher
+	riverClient *river.Client[pgx.Tx]
 }
 
-func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache, pub *msq.URLPublisher) *URLHandler {
+func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache, pub *msq.URLPublisher, riverClient *river.Client[pgx.Tx]) *URLHandler {
 	return &URLHandler{
-		urlRepo: urlRepo,
-		idGen:   idGen,
-		cache:   cache,
-		pub:     pub,
+		urlRepo:     urlRepo,
+		idGen:       idGen,
+		cache:       cache,
+		pub:         pub,
+		riverClient: riverClient,
 	}
 }
 
@@ -87,7 +92,12 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 
 	go func() {
 		if err := uh.pub.EnqueueURL(context.Background(), form.Origin, id); err != nil {
-			slog.Error("failed to enequeue url", "url", form.Origin, "id", id, "error", err.Error())
+			slog.Error("failed to enequeue url", "url", form.Origin, "url_id", id, "error", err.Error())
+		}
+		if _, err := uh.riverClient.Insert(context.Background(), background.IncreaseCountArgs{
+			ID: id,
+		}, nil); err != nil {
+			slog.Error("failed to enqueue increase view jobs", "url_id", id, "error", err.Error())
 		}
 	}()
 
@@ -105,9 +115,22 @@ func (uh *URLHandler) RetrieveFraudURLHandle(w http.ResponseWriter, r *http.Requ
 	fraud, err := uh.urlRepo.RetrieveFraud(context.Background(), id)
 	if err != nil {
 		slog.Error("fail to retrieve fraud from database", "error", err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	util.EncodeJSON(w, map[string]interface{}{"fraud": fraud})
+}
+
+func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(r.URL.Path, "/")
+	id := parts[len(parts)-1]
+
+	count, err := uh.urlRepo.GetView(context.Background(), id)
+	if err != nil {
+		slog.Error("fail to get view from database", "error", err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	util.EncodeJSON(w, map[string]interface{}{"count": count})
 }
