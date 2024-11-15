@@ -3,6 +3,7 @@ import { Box, Pagination } from "@mui/material";
 import { Copy, Link as LinkIcon, QrCode, Send as SendIcon } from "lucide-react";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
+import ViewClicks from "./ViewClicks";
 
 interface ShortenedUrl {
   shortUrl: string;
@@ -11,7 +12,7 @@ interface ShortenedUrl {
   expiry: number;
 }
 
-const EXPIRY_MINUTES = 2;
+const EXPIRY_MINUTES = 10;
 const ITEMS_PER_PAGE = 5;
 const API_BASE_URL = "http://localhost";
 
@@ -147,7 +148,7 @@ const Shorten = () => {
                 onClick={(e) => handleClick(e, url.shortUrl)}
                 className="font-medium text-indigo-600 hover:text-indigo-800 transition-colors duration-200 hover:underline text-sm sm:text-base"
               >
-                {`localhost:3000/short/${url.shortUrl.split("/").pop()}`}
+                {`${API_BASE_URL}/short/${url.shortUrl.split("/").pop()}`}
               </a>
               <div className="flex items-center gap-2">
                 <button
@@ -166,6 +167,7 @@ const Shorten = () => {
                 >
                   <QrCode className="w-4 h-4 text-indigo-500" />
                 </button>
+                <ViewClicks urlId={url.shortUrl.split("/").pop() || ""} />
               </div>
             </div>
             <div className="mt-1 text-gray-600 text-left">
