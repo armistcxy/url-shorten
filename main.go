@@ -108,7 +108,7 @@ func main() {
 		http.Handle("GET /fraud/{id}", retrieveFraudHandler)
 
 		getViewHandler := http.HandlerFunc(urlHandler.GetURLView)
-		http.Handle("Get /view/{id}", getViewHandler)
+		http.Handle("GET /view/{id}", getViewHandler)
 
 		go urlHandler.BatchCreate()
 	}
