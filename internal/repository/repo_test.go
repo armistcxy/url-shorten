@@ -191,7 +191,7 @@ func benchmarkBatchCreate(b *testing.B, numberOfInstances int) {
 }
 
 func BenchmarkBatchCreate100Instances(b *testing.B) {
-	benchmarkBatchCreate(b, 500)
+	benchmarkBatchCreate(b, 100)
 }
 
 func BenchmarkBatchCreate1000Instances(b *testing.B) {
