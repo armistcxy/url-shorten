@@ -1,215 +1,242 @@
 package repository
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"log/slog"
 	"os"
+	"runtime"
+	"strconv"
+	"sync"
 	"testing"
 
+	"github.com/armistcxy/shorten/internal/domain"
+	"github.com/go-faker/faker/v4"
 	"github.com/jmoiron/sqlx"
-
 	_ "github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
 )
 
-func init() {
-	dsn := os.Getenv("URL_DSN")
-	db := sqlx.MustConnect("postgres", dsn)
-	createURLTableQuery := `
-		CREATE TABLE IF NOT EXISTS urls (
-			id TEXT PRIMARY KEY,
-			original_url TEXT NOT NULL,
-			created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-		);
+var (
+	once sync.Once
+	db   *sqlx.DB
+	repo *PostgresURLRepository
+)
 
-		CREATE INDEX IF NOT EXISTS idx_urls_id ON urls (id);
-	`
-	_ = db.MustExec(createURLTableQuery)
+func TestCreate(t *testing.T) {
+	repo, db = getSystem()
+	if db == nil {
+		t.Error("db is nil")
+		return
+	}
+
+	if repo == nil {
+		t.Error("repo is nil")
+		return
+	}
+
+	id := "abcdef"
+	origin := "https://example.com/abcqwertyuio123456789qwertyuiop"
+
+	defer clear(db, []string{id})
+	shorten, err := repo.Create(context.Background(), id, origin)
+	if err != nil {
+		t.Errorf("failed to create: %s", err)
+		return
+	}
+
+	assert.Equal(t, id, shorten.ID)
+	assert.Equal(t, origin, shorten.Origin)
 }
 
-type URLFixture struct {
-	ID     string `db:"id"`
-	Origin string `db:"original_url"`
+func TestGet(t *testing.T) {
+	repo, db = getSystem()
+	id := "abcdef"
+	origin := "https://example.com/abcqwertyuio123456789qwertyuiop"
+	_, err := repo.Create(context.Background(), id, origin)
+	if err != nil {
+		t.Error(err.Error())
+		t.FailNow()
+	}
+	defer clear(db, []string{id})
+	result, err := repo.Get(context.Background(), id)
+	if err != nil {
+		t.Errorf("failed to get origin: %s", err)
+		return
+	}
+	assert.Equal(t, origin, result)
 }
 
-// func TestPostgresRepoCreateShort(t *testing.T) {
-// 	dsn := os.Getenv("URL_DSN")
-// 	db := sqlx.MustConnect("postgres", dsn)
-// 	fixtures := []URLFixture{
-// 		{Origin: "https://www.example.com"},
-// 		{Origin: "https://www.google.com"},
-// 		{Origin: "https://github.com"},
-// 		{Origin: "https://stackoverflow.com"},
-// 		{Origin: "https://www.youtube.com"},
-// 	}
+func TestRetrieveFraud(t *testing.T) {
+	repo, db = getSystem()
+	id := "abcdef"
+	origin := "https://example.com/abcqwertyuio123456789qwertyuiop"
+	_, err := repo.Create(context.Background(), id, origin)
+	if err != nil {
+		t.Error(err.Error())
+		t.FailNow()
+	}
+	defer clear(db, []string{id})
 
-// 	// clean
-// 	defer func() {
-// 		if err := postgresRepoCleanHelper(db, fixtures); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+	fraud, err := repo.RetrieveFraud(context.Background(), id)
+	if err != nil {
+		t.Errorf("failed to retrieve fraud: %s", err)
+		return
+	}
 
-// 	repo, err := NewPostgresURLRepository(dsn)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	assert.Equal(t, false, fraud)
+}
 
-// 	type TestCase struct {
-// 		testName string
-// 		fixture  URLFixture
-// 	}
+func TestGetView(t *testing.T) {
+	repo, db = getSystem()
+	id := "abcdef"
+	origin := "https://example.com/abcqwertyuio123456789qwertyuiop"
+	_, err := repo.Create(context.Background(), id, origin)
+	if err != nil {
+		t.Error(err.Error())
+		t.FailNow()
+	}
+	defer clear(db, []string{id})
+	view, err := repo.GetView(context.Background(), id)
+	if err != nil {
+		t.Errorf("failed to get view: %s", err)
+		return
+	}
+	assert.Equal(t, 0, view)
+}
 
-// 	testcases := make([]TestCase, len(fixtures))
+func TestBatchCreate(t *testing.T) {
+	repo, db = getSystem()
+	ids := []string{"abcdef", "fwerwe", "le123f"}
+	origins := []string{"https://example.com/abcqwertyuio123456789qwertyuiop", "https://example1.com/231231231231231221312312", "https://example2.com/afsdfaewrr"}
+	defer clear(db, ids)
+	inputs := make([]domain.CreateInput, len(ids))
+	for i := range inputs {
+		inputs[i] = domain.CreateInput{
+			ID:  ids[i],
+			URL: origins[i],
+		}
+	}
+	err := repo.BatchCreate(context.Background(), inputs)
+	if err != nil {
+		t.Error(err.Error())
+		t.FailNow()
+	}
+}
 
-// 	// prepare testcases
-// 	for i, ft := range fixtures {
-// 		testcases[i] = TestCase{
-// 			testName: fmt.Sprintf("Test %d", i+1),
-// 			fixture:  ft,
-// 		}
-// 	}
+func prepareInstances(numberOfInstances int) []domain.CreateInput {
+	inputs := make([]domain.CreateInput, numberOfInstances)
+	for i := range inputs {
+		inputs[i] = domain.CreateInput{
+			ID:  strconv.Itoa(i),
+			URL: faker.URL(),
+		}
+	}
+	return inputs
+}
 
-// 	for _, tc := range testcases {
-// 		t.Run(tc.testName, func(t *testing.T) {
-// 			short, err := repo.Create(context.Background(), tc.fixture.Origin)
-// 			if err != nil {
-// 				t.Errorf("fail to retrieve create short url, error: %s", err)
-// 				return
-// 			}
-// 			assert.Equal(t, tc.fixture.Origin, short.Origin)
-// 		})
-// 	}
-// }
+func benchmarkCreate(b *testing.B, numberOfInstances int) {
+	repo, db = getSystem()
+	inputs := prepareInstances(numberOfInstances)
+	ids := make([]string, numberOfInstances)
+	for i := range ids {
+		ids[i] = inputs[i].ID
+	}
+	var shorten *domain.ShortURL
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		for i := range inputs {
+			shorten, _ = repo.Create(context.Background(), inputs[i].ID, inputs[i].URL)
+		}
+		b.StopTimer()
+		clear(db, ids)
+	}
+	runtime.KeepAlive(shorten)
+}
 
-// func TestPostgresRepoGetOrigin(t *testing.T) {
-// 	dsn := os.Getenv("URL_DSN")
-// 	db := sqlx.MustConnect("postgres", dsn)
-// 	fixtures := []URLFixture{
-// 		{Origin: "https://www.example.com"},
-// 		{Origin: "https://www.google.com"},
-// 		{Origin: "https://github.com"},
-// 		{Origin: "https://stackoverflow.com"},
-// 		{Origin: "https://www.youtube.com"},
-// 	}
-// 	for i := range fixtures {
-// 		fixtures[i].ID = domain.RandomString(6)
-// 	}
+func BenchmarkCreate100Instances(b *testing.B) {
+	benchmarkCreate(b, 100)
+}
 
-// 	// clean
-// 	defer func() {
-// 		if err := postgresRepoCleanHelper(db, fixtures); err != nil {
-// 			t.Fatal(err)
-// 		}
-// 	}()
+func BenchmarkCreate1000Instances(b *testing.B) {
+	benchmarkCreate(b, 1_000)
+}
 
-// 	// init
-// 	if err := postgresRepoInitHelper(db, fixtures); err != nil {
-// 		t.Fatal(err)
-// 	}
+func BenchmarkCreate2000Instances(b *testing.B) {
+	benchmarkCreate(b, 2_000)
+}
 
-// 	repo, err := NewPostgresURLRepository(dsn)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func BenchmarkGet(b *testing.B) {}
 
-// 	type TestCase struct {
-// 		testName string
-// 		fixture  URLFixture
-// 	}
+func BenchmarkRetrieveFraud(b *testing.B) {}
 
-// 	testcases := make([]TestCase, len(fixtures))
+func BenchmarkGetView(b *testing.B) {}
 
-// 	// prepare testcases
-// 	for i, ft := range fixtures {
-// 		testcases[i] = TestCase{
-// 			testName: fmt.Sprintf("Test %d", i+1),
-// 			fixture:  ft,
-// 		}
-// 	}
+func benchmarkBatchCreate(b *testing.B, numberOfInstances int) {
+	repo, db = getSystem()
+	inputs := prepareInstances(numberOfInstances)
+	ids := make([]string, numberOfInstances)
+	for i := range ids {
+		ids[i] = inputs[i].ID
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		_ = repo.BatchCreate(context.Background(), inputs)
+		b.StopTimer()
+		clear(db, ids)
+	}
+}
 
-// 	for _, tc := range testcases {
-// 		t.Run(tc.testName, func(t *testing.T) {
-// 			origin, err := repo.Get(context.Background(), tc.fixture.ID)
-// 			if err != nil {
-// 				t.Errorf("fail to retrieve origin url, error: %s", err)
-// 				return
-// 			}
-// 			assert.Equal(t, tc.fixture.Origin, origin)
-// 		})
-// 	}
-// }
+func BenchmarkBatchCreate100Instances(b *testing.B) {
+	benchmarkBatchCreate(b, 500)
+}
 
-// func BenchmarkPostgresRepositoryMassiveCreate(b *testing.B) {
-// 	b.StopTimer()
-// 	var short *domain.ShortURL
-// 	var err error
-// 	dsn := os.Getenv("URL_DSN")
-// 	repo, err := NewPostgresURLRepository(dsn)
-// 	if err != nil {
-// 		slog.Error("failed when prepare repository for benchmark massive create (postgresql)", "error", err.Error())
-// 		b.FailNow()
-// 	}
-// 	ids := make([]string, 0)
-// 	b.StartTimer()
+func BenchmarkBatchCreate1000Instances(b *testing.B) {
+	benchmarkBatchCreate(b, 1_000)
+}
 
-// 	for i := 0; i < b.N; i++ {
-// 		b.StopTimer()
-// 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 		defer cancel()
-// 		url := faker.URL()
-// 		b.StartTimer()
+func BenchmarkBatchCreate2000Instances(b *testing.B) {
+	benchmarkBatchCreate(b, 2_000)
+}
 
-// 		short, err = repo.Create(ctx, url)
-// 		if err != nil {
-// 			slog.Error("failed to create short url", "error", err.Error())
-// 		}
+func initSystem() {
+	db = sqlx.MustConnect("postgres", os.Getenv("URL_DSN"))
+	var err error
+	repo, err = NewPostgresURLRepository(db)
+	if err != nil {
+		panic(err)
+	}
+}
 
-// 		b.StopTimer()
-// 		ids = append(ids, short.ID)
-// 		b.StartTimer()
-// 	}
+func getSystem() (*PostgresURLRepository, *sqlx.DB) {
+	once.Do(initSystem)
+	return repo, db
+}
 
-// 	b.StopTimer()
-// 	b.Cleanup(func() {
-// 		query := `
-// 			DELETE FROM urls
-// 			WHERE id=$1
-// 		`
-// 		for id := range ids {
-// 			_, err := repo.db.Exec(query, id)
-// 			if err != nil {
-// 				slog.Error("failed when cleaning up", "error", err.Error())
-// 			}
-// 		}
-// 	})
-// }
+func clear(db *sqlx.DB, ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	var (
+		deleteQuery = `
+			DELETE FROM urls
+			WHERE id IN ( 
+		`
+	)
 
-// func postgresRepoInitHelper(db *sqlx.DB, fixtures []URLFixture) error {
-// 	// bulk insert with db.NamedExec, (acutally not bulk insert feature but it save number of connections, 1 query add all)
-// 	_, err := db.NamedExec(`INSERT INTO urls (id, original_url) VALUES (:id, :original_url)`, fixtures)
-// 	return err
-// }
+	byteBuffer := bytes.NewBufferString(deleteQuery)
+	for i := range ids {
+		byteBuffer.WriteString(fmt.Sprintf("'%s'", ids[i]))
+		if i < len(ids)-1 {
+			byteBuffer.WriteString(",")
+		}
+	}
+	byteBuffer.WriteString(")")
 
-// func postgresRepoCleanHelper(db *sqlx.DB, fixtures []URLFixture) error {
-// 	deleteQuery := `
-// 		DELETE FROM urls
-// 		WHERE original_url=$1
-// 	`
-
-// 	for _, fixture := range fixtures {
-// 		_, err := db.Exec(deleteQuery, fixture.Origin)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-func TestBoltRepositoryCreateShort(t *testing.T) {}
-func TestBoltRepositoryGetOrigin(t *testing.T)   {}
-func BenchmarkBoltRepository(b *testing.B)       {}
-
-func TestSQLiteRepositoryCreateShort(t *testing.T) {}
-func TestSQLiteRepositoryGetOrigin(t *testing.T)   {}
-func BenchmarkSQLiteRepository(b *testing.B)       {}
-
-// honour mention: Redis ??
+	if _, err := db.Exec(byteBuffer.String()); err != nil {
+		slog.Error("failed to delete fixtures after test", "error", err.Error())
+	}
+}
