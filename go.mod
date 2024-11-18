@@ -4,6 +4,7 @@ go 1.23.1
 
 require (
 	github.com/felixge/httpsnoop v1.0.4
+	github.com/go-faker/faker/v4 v4.5.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/jmoiron/sqlx v1.4.0
