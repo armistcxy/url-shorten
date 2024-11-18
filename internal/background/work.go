@@ -91,7 +91,7 @@ func (iw *IncreaseCountWorker) Work(ctx context.Context, job *river.Job[Increase
 var (
 	batchUpdateQuery = `
 		UPDATE urls AS u
-		SET count = u.count + c.new_count
+		SET count = u.count + c.new_count::integer
 		FROM (VALUES %s) AS c(id, new_count)
 		WHERE u.id = c.id;
 	`
@@ -108,13 +108,18 @@ func (iw *IncreaseCountWorker) BatchUpdate() error {
 	for id, cnt := range iw.counter {
 		valuesBuilder.WriteString(fmt.Sprintf("($%d, $%d),", i, i+1))
 		params = append(params, id, cnt)
-		i++
+		i += 2
+	}
+
+	if len(params) == 0 {
+		return nil
 	}
 
 	values := valuesBuilder.String()
 	values = values[:len(values)-1]
 
 	query := fmt.Sprintf(batchUpdateQuery, values)
+	// log.Printf("Query statement: %s\n", query)
 
 	if _, err := iw.db.Exec(query, params...); err != nil {
 		return err
