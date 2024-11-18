@@ -28,6 +28,7 @@ type URLHandler struct {
 	pub         *msq.URLPublisher
 	riverClient *river.Client[pgx.Tx]
 	inputs      []domain.CreateInput
+	viewManager *ViewManager
 	mu          sync.Mutex
 }
 
@@ -40,6 +41,7 @@ func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache
 		pub:         pub,
 		riverClient: riverClient,
 		inputs:      make([]domain.CreateInput, 0),
+		viewManager: NewViewManager(),
 		mu:          sync.Mutex{},
 	}
 }
@@ -57,6 +59,14 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		slog.Error("failed when trying to retrieve entry from cache", "error", err.Error())
 	} else if originURL != "" {
+		go func() {
+			uh.viewManager.counter.Increase(id)
+			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := uh.cache.SetWithTTL(cacheCtx, id, originURL, 5*time.Minute); err != nil {
+				slog.Error("failed to set k-v to cache", "id", id, "origin", originURL, "error", err.Error())
+			}
+		}()
 		util.EncodeJSON(w, map[string]string{"origin": originURL})
 		return
 	}
@@ -66,6 +76,11 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("fail to retrive origin url, error: %s", err), http.StatusInternalServerError)
 		return
 	}
+
+	go func() {
+		uh.viewManager.counter.Increase(id)
+	}()
+
 	util.EncodeJSON(w, map[string]string{"origin": originURL})
 }
 
@@ -142,9 +157,17 @@ func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	count += uh.viewManager.counter.Get(id)
+
+	count = max(count, uh.viewManager.GetLast(id))
+	uh.viewManager.UpdateLast(id, count)
 	util.EncodeJSON(w, map[string]interface{}{"count": count})
 }
 
+// BatchCreate is a background process that periodically batches and creates URL entries in the system.
+// It collects URL creation requests in a buffer, and every 5 seconds or when the buffer reaches 1000 entries,
+// it batches the requests and creates them in the URL repository. If there is an error during the batch creation,
+// it will enqueue the batch to be retried in the background.
 func (uh *URLHandler) BatchCreate() {
 	start := time.Now()
 	for {
@@ -152,11 +175,112 @@ func (uh *URLHandler) BatchCreate() {
 		if len(uh.inputs) >= 1000 || (time.Since(start) >= 5*time.Second && len(uh.inputs) > 0) {
 			if err := uh.urlRepo.BatchCreate(context.Background(), uh.inputs); err != nil {
 				slog.Error("failed to perform batch create", "error", err.Error())
-				// enqueue to background process to retry batch creata again
+				// enqueue to background process to retry batch create again
 			}
 			start = time.Now()
 			uh.inputs = make([]domain.CreateInput, 0)
 		}
 		uh.mu.Unlock()
 	}
+}
+
+// BatchUpdateView is a background process that periodically updates the view count for URLs in the system.
+// It retrieves the current view counts from an in-memory counter, resets the counter, and then inserts the view counts
+// into a separate system for further processing.
+// This function runs in a separate goroutine and is triggered by a 20-second ticker.
+func (uh *URLHandler) BatchUpdateView() {
+	ticker := time.NewTicker(20 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		data := uh.viewManager.counter.Snapshot()
+
+		for id, cnt := range data {
+			if _, err := uh.riverClient.Insert(context.Background(), background.IncreaseCountArgs{
+				ID:    id,
+				Count: cnt,
+			}, nil); err != nil {
+				slog.Error("failed to enqueue increase view URL job", "error", err.Error())
+			}
+		}
+
+		uh.viewManager.counter.Reset()
+	}
+}
+
+type ViewManager struct {
+	mu       sync.Mutex
+	counter  *Counter
+	lastView map[string]int
+}
+
+func NewViewManager() *ViewManager {
+	return &ViewManager{
+		mu:       sync.Mutex{},
+		counter:  NewCounter(),
+		lastView: make(map[string]int),
+	}
+}
+
+func (vm *ViewManager) GetLast(id string) int {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	return vm.lastView[id]
+}
+
+func (vm *ViewManager) UpdateLast(id string, val int) {
+	vm.mu.Lock()
+	defer vm.mu.Unlock()
+	vm.lastView[id] = val
+}
+
+// Counter is a thread-safe counter that keeps track of the count for a set of keys.
+type Counter struct {
+	mu  sync.Mutex
+	cnt map[string]int
+}
+
+func NewCounter() *Counter {
+	return &Counter{
+		mu:  sync.Mutex{},
+		cnt: make(map[string]int),
+	}
+}
+
+func (c *Counter) Increase(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cnt[key]++
+}
+
+func (c *Counter) Get(key string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.cnt[key]
+}
+
+func (c *Counter) Size() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.cnt)
+}
+
+// Snapshot retrieves a copy of the current counter data and resets it
+func (c *Counter) Snapshot() map[string]int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Create a copy of the current data
+	snapshot := make(map[string]int, len(c.cnt))
+	for k, v := range c.cnt {
+		snapshot[k] = v
+	}
+
+	return snapshot
+}
+
+func (c *Counter) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cnt = make(map[string]int)
 }

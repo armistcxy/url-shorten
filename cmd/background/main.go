@@ -40,7 +40,7 @@ func main() {
 		start := time.Now()
 
 		for {
-			if time.Since(start) >= 20*time.Second {
+			if time.Since(start) >= 1*time.Second {
 				if err := incCntWorker.BatchUpdate(); err != nil {
 					slog.Error("failed to perform batch update on increasing 'count' field", "error", err.Error())
 				}

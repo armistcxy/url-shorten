@@ -3,6 +3,7 @@ package background
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"strings"
 	"sync"
@@ -59,7 +60,8 @@ func updateLastUsedID(db *sqlx.DB, id uint64) error {
 }
 
 type IncreaseCountArgs struct {
-	ID string
+	ID    string
+	Count int
 }
 
 func (IncreaseCountArgs) Kind() string {
@@ -84,7 +86,7 @@ func NewIncreaseCountWorker(db *sqlx.DB) *IncreaseCountWorker {
 func (iw *IncreaseCountWorker) Work(ctx context.Context, job *river.Job[IncreaseCountArgs]) error {
 	iw.mu.Lock()
 	defer iw.mu.Unlock()
-	iw.counter[job.Args.ID]++
+	iw.counter[job.Args.ID] += job.Args.Count
 	return nil
 }
 
@@ -119,7 +121,7 @@ func (iw *IncreaseCountWorker) BatchUpdate() error {
 	values = values[:len(values)-1]
 
 	query := fmt.Sprintf(batchUpdateQuery, values)
-	// log.Printf("Query statement: %s\n", query)
+	log.Printf("Query statement: %s\n", query)
 
 	if _, err := iw.db.Exec(query, params...); err != nil {
 		return err
