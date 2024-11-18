@@ -111,6 +111,7 @@ func main() {
 		http.Handle("GET /view/{id}", getViewHandler)
 
 		go urlHandler.BatchCreate()
+		go urlHandler.BatchUpdateView()
 	}
 
 	// Gracefully shutdown
