@@ -150,22 +150,22 @@ const Shorten = () => {
               >
                 {`${API_BASE_URL}/short/${url.shortUrl.split("/").pop()}`}
               </a>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => handleCopy(url.shortUrl)}
-                  className="p-2 hover:bg-white/50 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
                   aria-label="Copy URL"
                 >
-                  <Copy className="w-4 h-4 text-indigo-500" />
+                  <Copy className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowQR(url.shortUrl)}
-                  className="p-2 hover:bg-white/50 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
                   aria-label="Show QR Code"
                 >
-                  <QrCode className="w-4 h-4 text-indigo-500" />
+                  <QrCode className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
                 </button>
                 <ViewClicks urlId={url.shortUrl.split("/").pop() || ""} />
               </div>

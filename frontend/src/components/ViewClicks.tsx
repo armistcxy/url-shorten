@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Box, Typography, CircularProgress } from "@mui/material";
-import { Eye } from "lucide-react";
+import { MousePointer } from "lucide-react";
 
 const API_BASE_URL = "http://localhost";
-const POLLING_INTERVAL = 5000;
+const POLLING_INTERVAL = 2000;
 
 interface ViewClicksProps {
   urlId: string;
+  initialClicks?: number;
 }
 
-const ViewClicks: React.FC<ViewClicksProps> = ({ urlId }) => {
-  const [clicks, setClicks] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+const ViewClicks: React.FC<ViewClicksProps> = ({
+  urlId,
+  initialClicks = 0,
+}) => {
+  const [clicks, setClicks] = useState<number | null>(initialClicks);
+  const [loading, setLoading] = useState(!initialClicks);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClicks = async () => {
@@ -29,20 +32,23 @@ const ViewClicks: React.FC<ViewClicksProps> = ({ urlId }) => {
   };
 
   useEffect(() => {
-    fetchClicks(); // Initial fetch
-
-    // Set up polling
+    fetchClicks();
     const intervalId = setInterval(fetchClicks, POLLING_INTERVAL);
-
-    // Cleanup on unmount
     return () => clearInterval(intervalId);
   }, [urlId]);
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", alignItems: "center", p: 1 }}>
-        <CircularProgress size={16} sx={{ color: "rgb(99 102 241)" }} />
-      </Box>
+      <button
+        type="button"
+        className="flex items-center gap-1 p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
+        aria-label="View Clicks"
+      >
+        <MousePointer className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
+        <span className="text-xs sm:text-sm font-medium text-gray-600">
+          0 clicks
+        </span>
+      </button>
     );
   }
 
@@ -51,29 +57,16 @@ const ViewClicks: React.FC<ViewClicksProps> = ({ urlId }) => {
   }
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1,
-        p: 1,
-        borderRadius: "9999px",
-        "&:hover": {
-          backgroundColor: "rgba(99, 102, 241, 0.1)",
-        },
-      }}
+    <button
+      type="button"
+      className="flex items-center gap-1 p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
+      aria-label="View Clicks"
     >
-      <Eye className="w-4 h-4 text-indigo-500" />
-      <Typography
-        variant="body2"
-        sx={{
-          color: "rgb(75 85 99)",
-          fontSize: "0.875rem",
-        }}
-      >
-        {clicks} {clicks === 1 ? "click" : "clicks"}
-      </Typography>
-    </Box>
+      <MousePointer className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
+      <span className="text-xs sm:text-sm font-medium text-gray-600">
+        {clicks} clicks
+      </span>
+    </button>
   );
 };
 
