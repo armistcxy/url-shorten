@@ -37,12 +37,14 @@ func main() {
 	river.AddWorker(workers, incCntWorker)
 
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		defer ticker.Stop()
+		start := time.Now()
 
-		for range ticker.C {
-			if err := incCntWorker.BatchUpdate(); err != nil {
-				slog.Error("failed to perform batch update on increasing 'count' field")
+		for {
+			if time.Since(start) >= 20*time.Second {
+				if err := incCntWorker.BatchUpdate(); err != nil {
+					slog.Error("failed to perform batch update on increasing 'count' field", "error", err.Error())
+				}
+				start = time.Now()
 			}
 		}
 	}()
