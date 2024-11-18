@@ -3,6 +3,7 @@ import { Box, Pagination } from "@mui/material";
 import { Copy, Link as LinkIcon, QrCode, Send as SendIcon } from "lucide-react";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
+import ViewClicks from "./ViewClicks";
 
 interface ShortenedUrl {
   shortUrl: string;
@@ -11,7 +12,7 @@ interface ShortenedUrl {
   expiry: number;
 }
 
-const EXPIRY_MINUTES = 2;
+const EXPIRY_MINUTES = 10;
 const ITEMS_PER_PAGE = 5;
 const API_BASE_URL = "http://localhost";
 
@@ -147,25 +148,26 @@ const Shorten = () => {
                 onClick={(e) => handleClick(e, url.shortUrl)}
                 className="font-medium text-indigo-600 hover:text-indigo-800 transition-colors duration-200 hover:underline text-sm sm:text-base"
               >
-                {`localhost:3000/short/${url.shortUrl.split("/").pop()}`}
+                {`${API_BASE_URL}/short/${url.shortUrl.split("/").pop()}`}
               </a>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => handleCopy(url.shortUrl)}
-                  className="p-2 hover:bg-white/50 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
                   aria-label="Copy URL"
                 >
-                  <Copy className="w-4 h-4 text-indigo-500" />
+                  <Copy className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowQR(url.shortUrl)}
-                  className="p-2 hover:bg-white/50 rounded-full transition-colors"
+                  className="p-1 sm:p-2 hover:bg-white/50 rounded-full transition-colors"
                   aria-label="Show QR Code"
                 >
-                  <QrCode className="w-4 h-4 text-indigo-500" />
+                  <QrCode className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-500" />
                 </button>
+                <ViewClicks urlId={url.shortUrl.split("/").pop() || ""} />
               </div>
             </div>
             <div className="mt-1 text-gray-600 text-left">
