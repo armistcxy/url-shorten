@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisCache struct {
@@ -47,4 +47,42 @@ func (rc *RedisCache) Set(ctx context.Context, id string, url string) error {
 
 func (rc *RedisCache) SetWithTTL(ctx context.Context, id string, url string, ttl time.Duration) error {
 	return rc.client.Set(ctx, id, url, ttl).Err()
+}
+
+type RedisClusterCache struct {
+	client *redis.ClusterClient
+}
+
+func NewRedisClusterCache(redisURLs []string) *RedisClusterCache {
+	parsedURLs := make([]string, len(redisURLs))
+	for i := range parsedURLs {
+		if opt, err := redis.ParseURL(redisURLs[i]); err != nil {
+			panic(err)
+		} else {
+			parsedURLs[i] = opt.Addr
+		}
+	}
+	client := redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs: parsedURLs,
+	})
+	return &RedisClusterCache{client: client}
+}
+
+func (rcc *RedisClusterCache) Get(ctx context.Context, id string) (string, error) {
+	val, err := rcc.client.Get(ctx, id).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
+		return "", err
+	}
+	return val, nil
+}
+
+func (rcc *RedisClusterCache) Set(ctx context.Context, id string, url string) error {
+	return rcc.client.Set(ctx, id, url, 0).Err()
+}
+
+func (rcc *RedisClusterCache) SetWithTTL(ctx context.Context, id string, url string, ttl time.Duration) error {
+	return rcc.client.Set(ctx, id, url, ttl).Err()
 }
