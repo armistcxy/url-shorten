@@ -7,18 +7,21 @@ import (
 	"strings"
 
 	"github.com/armistcxy/shorten/internal/domain"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 type PostgresURLRepository struct {
-	db *sqlx.DB
+	db   *sqlx.DB
+	pool *pgxpool.Pool
 }
 
-func NewPostgresURLRepository(db *sqlx.DB) (*PostgresURLRepository, error) {
+func NewPostgresURLRepository(db *sqlx.DB, pool *pgxpool.Pool) (*PostgresURLRepository, error) {
 	initTables(db)
 	return &PostgresURLRepository{
-		db: db,
+		db:   db,
+		pool: pool,
 	}, nil
 }
 
@@ -56,7 +59,8 @@ func (pr *PostgresURLRepository) Create(ctx context.Context, id string, url stri
 		ID:     id,
 		Origin: url,
 	}
-	if err := pr.db.GetContext(ctx, &short.CreatedAt, insertURLQuery, id, url); err != nil {
+	row := pr.pool.QueryRow(ctx, insertURLQuery, id, url)
+	if err := row.Scan(&short.CreatedAt); err != nil {
 		return nil, err
 	}
 	return short, nil
@@ -71,7 +75,11 @@ var (
 
 func (pr *PostgresURLRepository) Get(ctx context.Context, id string) (string, error) {
 	var origin string
-	if err := pr.db.GetContext(ctx, &origin, getURLQuery, id); err != nil {
+	// if err := pr.db.GetContext(ctx, &origin, getURLQuery, id); err != nil {
+	// 	return "", err
+	// }
+	row := pr.pool.QueryRow(ctx, getURLQuery, id)
+	if err := row.Scan(&origin); err != nil {
 		return "", err
 	}
 	return origin, nil
@@ -86,8 +94,9 @@ var (
 
 func (pr *PostgresURLRepository) RetrieveFraud(ctx context.Context, id string) (bool, error) {
 	var fraud bool
-	if err := pr.db.GetContext(ctx, &fraud, retrieveFraudQuery, id); err != nil {
-		return false, err
+	row := pr.pool.QueryRow(ctx, retrieveFraudQuery, id)
+	if err := row.Scan(&fraud); err != nil {
+		return false, nil
 	}
 	return fraud, nil
 }
@@ -102,7 +111,8 @@ var (
 
 func (pr *PostgresURLRepository) GetView(ctx context.Context, id string) (int, error) {
 	var view int
-	if err := pr.db.GetContext(ctx, &view, getViewQuery, id); err != nil {
+	row := pr.pool.QueryRow(ctx, getViewQuery, id)
+	if err := row.Scan(&view); err != nil {
 		return 0, err
 	}
 	return view, nil
@@ -117,7 +127,7 @@ func (pr *PostgresURLRepository) BatchCreate(ctx context.Context, inputs []domai
 	byteBuffer.WriteString(strings.Join(tuples, ","))
 
 	query := byteBuffer.String()
-	if _, err := pr.db.Exec(query); err != nil {
+	if _, err := pr.pool.Exec(ctx, query); err != nil {
 		return err
 	}
 	return nil

@@ -13,6 +13,7 @@ import (
 
 	"github.com/armistcxy/shorten/internal/domain"
 	"github.com/go-faker/faker/v4"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -204,8 +205,9 @@ func BenchmarkBatchCreate2000Instances(b *testing.B) {
 
 func initSystem() {
 	db = sqlx.MustConnect("postgres", os.Getenv("URL_DSN"))
+	pool, _ := pgxpool.New(context.Background(), os.Getenv("URL_DSN"))
 	var err error
-	repo, err = NewPostgresURLRepository(db)
+	repo, err = NewPostgresURLRepository(db, pool)
 	if err != nil {
 		panic(err)
 	}
