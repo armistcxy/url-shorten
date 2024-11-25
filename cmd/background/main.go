@@ -33,6 +33,9 @@ func main() {
 	workers := river.NewWorkers()
 	river.AddWorker(workers, background.NewAddLastUsedIDWorker(db))
 
+	batchCreateWorker := background.NewBatchCreateWorker(db)
+	river.AddWorker(workers, batchCreateWorker)
+
 	incCntWorker := background.NewIncreaseCountWorker(db)
 	river.AddWorker(workers, incCntWorker)
 

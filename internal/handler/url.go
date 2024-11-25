@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/armistcxy/shorten/internal/util"
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
+	"golang.org/x/sync/singleflight"
 )
 
 // This will deal with 2 end points
@@ -29,11 +31,13 @@ type URLHandler struct {
 	riverClient *river.Client[pgx.Tx]
 	inputs      []domain.CreateInput
 	viewManager *ViewManager
+	viewCache   cache.ViewCache
+	group       singleflight.Group
 	mu          sync.Mutex
 }
 
 func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache cache.Cache,
-	pub *msq.URLPublisher, riverClient *river.Client[pgx.Tx]) *URLHandler {
+	pub *msq.URLPublisher, riverClient *river.Client[pgx.Tx], viewCache cache.ViewCache) *URLHandler {
 	return &URLHandler{
 		urlRepo:     urlRepo,
 		idGen:       idGen,
@@ -42,6 +46,8 @@ func NewURLHandler(urlRepo domain.URLRepository, idGen domain.IDGenerator, cache
 		riverClient: riverClient,
 		inputs:      make([]domain.CreateInput, 0),
 		viewManager: NewViewManager(),
+		viewCache:   viewCache,
+		group:       singleflight.Group{},
 		mu:          sync.Mutex{},
 	}
 }
@@ -61,22 +67,31 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 	} else if originURL != "" {
 		go func() {
 			uh.viewManager.counter.Increase(id)
-			cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := uh.cache.SetWithTTL(cacheCtx, id, originURL, 5*time.Minute); err != nil {
-				slog.Error("failed to set k-v to cache", "id", id, "origin", originURL, "error", err.Error())
-			}
 		}()
 		util.EncodeJSON(w, map[string]string{"origin": originURL})
 		return
 	}
 
-	originURL, err = uh.urlRepo.Get(context.Background(), id)
+	_, err, _ = uh.group.Do(id, func() (interface{}, error) {
+		dbQueryCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		originURL, err = uh.urlRepo.Get(dbQueryCtx, id)
+		if err != nil {
+			slog.Error("fail to retrieve origin url", "error", err.Error())
+			return nil, err
+		}
+		setCacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if setCacheErr := uh.cache.Set(setCacheCtx, id, originURL); err != nil {
+			slog.Error("failed to set k-v to cache", "id", id, "origin", originURL, "error", setCacheErr.Error())
+		}
+		return nil, nil
+	})
+
 	if err != nil {
-		http.Error(w, fmt.Sprintf("fail to retrive origin url, error: %s", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("fail to retrieve origin url, error: %s", err), http.StatusInternalServerError)
 		return
 	}
-
 	go func() {
 		uh.viewManager.counter.Increase(id)
 	}()
@@ -97,17 +112,10 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 
 	id := uh.idGen.GenerateID()
 
-	// short, err := uh.urlRepo.Create(context.Background(), id, form.Origin)
-	// if err != nil {
-	// 	slog.Error("failed to insert url to database", "error", err.Error())
-	// 	http.Error(w, fmt.Sprintf("failed when creating short url, error: %s", err), http.StatusInternalServerError)
-	// 	return
-	// }
-
 	// Add k-v pair (id:origin_url) to cache for 5 minutes
 	cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := uh.cache.SetWithTTL(cacheCtx, id, form.Origin, 5*time.Minute); err != nil {
+	if err := uh.cache.Set(cacheCtx, id, form.Origin); err != nil {
 		slog.Error("failed to set k-v to cache", "id", id, "origin", form.Origin, "error", err.Error())
 	}
 
@@ -126,7 +134,6 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 	}()
 
 	util.EncodeJSON(w, map[string]interface{}{"id": id, "origin": form.Origin})
-	// util.EncodeJSON(w, short)
 }
 
 type CreateShortForm struct {
@@ -151,16 +158,43 @@ func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	id := parts[len(parts)-1]
 
-	count, err := uh.urlRepo.GetView(context.Background(), id)
+	var (
+		count    int
+		result   string
+		err      error
+		cacheKey string = fmt.Sprintf("count:%s", id)
+	)
+
+	getCacheCtx, gCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer gCancel()
+	result, err = uh.cache.Get(getCacheCtx, cacheKey)
+	if err != nil {
+		slog.Error("fail to get view from cache", "error", err.Error())
+	} else if result != "" {
+		count, err = strconv.Atoi(result)
+		if err != nil {
+			slog.Error("fail to parse cache query result", "error", err.Error())
+		} else {
+			util.EncodeJSON(w, map[string]interface{}{"count": count})
+			return
+		}
+	}
+
+	count, err = uh.urlRepo.GetView(context.Background(), id)
 	if err != nil {
 		slog.Error("fail to get view from database", "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	count += uh.viewManager.counter.Get(id)
+	// setCacheCtx, sCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer sCancel()
+	// err = uh.cache.SetWithTTL(setCacheCtx, cacheKey)
 
+	// Old implementation
+	count += uh.viewManager.counter.Get(id)
 	count = max(count, uh.viewManager.GetLast(id))
 	uh.viewManager.UpdateLast(id, count)
+
 	util.EncodeJSON(w, map[string]interface{}{"count": count})
 }
 
@@ -176,6 +210,18 @@ func (uh *URLHandler) BatchCreate() {
 			if err := uh.urlRepo.BatchCreate(context.Background(), uh.inputs); err != nil {
 				slog.Error("failed to perform batch create", "error", err.Error())
 				// enqueue to background process to retry batch create again
+				ids := make([]string, len(uh.inputs))
+				originURLs := make([]string, len(uh.inputs))
+				for i := range len(uh.inputs) {
+					ids[i] = uh.inputs[i].ID
+					originURLs[i] = uh.inputs[i].URL
+				}
+				if _, err = uh.riverClient.Insert(context.Background(), background.BatchCreateArgs{
+					IDs:        ids,
+					OriginURLs: originURLs,
+				}, nil); err != nil {
+					slog.Error("failed to enqueue retry batch create task", "error", err.Error())
+				}
 			}
 			start = time.Now()
 			uh.inputs = make([]domain.CreateInput, 0)
