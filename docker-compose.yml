@@ -101,7 +101,6 @@ services:
         condition: service_started
       redis_9:
         condition: service_started
-    
     networks:
       backend:
       rabbitmq_network:
@@ -126,7 +125,7 @@ services:
       - .default_env
     depends_on:
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       db:
         condition: service_healthy
 
@@ -180,7 +179,7 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
-    ports: 
+    ports:
       - "5672:5672"
       - "15672:15672"
     networks:

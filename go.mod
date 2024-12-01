@@ -14,7 +14,7 @@ require (
 	github.com/riverqueue/river v0.14.1
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
 	github.com/sethvargo/go-limiter v1.0.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
 )
 
@@ -29,9 +29,9 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/riverqueue/river/riverdriver v0.14.1 // indirect
-	github.com/riverqueue/river/rivershared v0.14.1 // indirect
-	github.com/riverqueue/river/rivertype v0.14.1 // indirect
+	github.com/riverqueue/river/riverdriver v0.14.2 // indirect
+	github.com/riverqueue/river/rivershared v0.14.2 // indirect
+	github.com/riverqueue/river/rivertype v0.14.2 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
