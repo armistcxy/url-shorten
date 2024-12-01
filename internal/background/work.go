@@ -1,6 +1,7 @@
 package background
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -128,6 +129,41 @@ func (iw *IncreaseCountWorker) BatchUpdate() error {
 	}
 
 	iw.counter = make(map[string]int)
+	return nil
+}
+
+type BatchCreateArgs struct {
+	IDs        []string
+	OriginURLs []string
+}
+
+func (BatchCreateArgs) Kind() string {
+	return "batch_create"
+}
+
+type BatchCreateWorker struct {
+	db *sqlx.DB
+	river.WorkerDefaults[BatchCreateArgs]
+}
+
+func NewBatchCreateWorker(db *sqlx.DB) *BatchCreateWorker {
+	return &BatchCreateWorker{
+		db: db,
+	}
+}
+
+func (bw *BatchCreateWorker) Work(ctx context.Context, job *river.Job[BatchCreateArgs]) error {
+	byteBuffer := bytes.NewBufferString(`INSERT INTO urls (id, original_url) VALUES `)
+	tuples := make([]string, len(job.Args.IDs))
+	for i := range tuples {
+		tuples[i] = fmt.Sprintf("('%s', '%s')", job.Args.IDs[i], job.Args.OriginURLs[i])
+	}
+	byteBuffer.WriteString(strings.Join(tuples, ","))
+
+	query := byteBuffer.String()
+	if _, err := bw.db.ExecContext(ctx, query); err != nil {
+		return err
+	}
 	return nil
 }
 
