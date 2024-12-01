@@ -11,11 +11,12 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.7.0
-	github.com/riverqueue/river v0.14.1
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
+	github.com/riverqueue/river v0.14.2
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.2
 	github.com/sethvargo/go-limiter v1.0.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce
+	golang.org/x/sync v0.9.0
 )
 
 require (
@@ -39,7 +40,6 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	golang.org/x/crypto v0.29.0 // indirect
-	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
