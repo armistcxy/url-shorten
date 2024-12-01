@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"time"
 
@@ -66,6 +67,9 @@ func NewRedisClusterCache(redisURLs []string) *RedisClusterCache {
 	client := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: parsedURLs,
 	})
+	if err := client.Ping(context.Background()).Err(); err != nil {
+		log.Printf("Failed to ping Redis cluster: %v\n", err)
+	}
 	return &RedisClusterCache{client: client}
 }
 

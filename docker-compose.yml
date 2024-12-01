@@ -155,9 +155,31 @@ services:
         condition: service_healthy
       background_db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis_1:
+        condition: service_started
+      redis_2:
+        condition: service_started
+      redis_3:
+        condition: service_started
+      redis_4:
+        condition: service_started
+      redis_5:
+        condition: service_started
+      redis_6:
+        condition: service_started
+      redis_7:
+        condition: service_started
+      redis_8:
+        condition: service_started
+      redis_9:
+        condition: service_started
     command: ["./worker"]
     networks:
-      - backend
+      backend:
+      redis_cluster_net:
+        ipv4_address: 173.18.0.15
     
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.2

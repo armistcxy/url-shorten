@@ -10,7 +10,7 @@ COPY *.go .
 COPY cmd/ cmd/
 COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=linux go build -o shorten .
-RUN CGO_ENABLED=0 GOOS=linux go build -o worker cmd/background/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o worker ./cmd/background/
 
 FROM alpine:latest
 

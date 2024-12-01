@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +65,10 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		slog.Error("failed when trying to retrieve entry from cache", "error", err.Error())
 	} else if originURL != "" {
 		go func() {
-			uh.viewManager.counter.Increase(id)
+			// uh.viewManager.counter.Increase(id)
+			if err := uh.viewCache.Increase(context.Background(), convertToViewKey(id)); err != nil {
+				slog.Error("Failed to increase view", "url-id", id, "error", err.Error())
+			}
 		}()
 		util.EncodeJSON(w, map[string]string{"origin": originURL})
 		return
@@ -92,8 +94,12 @@ func (uh *URLHandler) GetOriginURLHandle(w http.ResponseWriter, r *http.Request)
 		http.Error(w, fmt.Sprintf("fail to retrieve origin url, error: %s", err), http.StatusInternalServerError)
 		return
 	}
+
 	go func() {
-		uh.viewManager.counter.Increase(id)
+		// uh.viewManager.counter.Increase(id)
+		if err := uh.viewCache.Increase(context.Background(), convertToViewKey(id)); err != nil {
+			slog.Error("Failed to increase view", "url-id", id, "error", err.Error())
+		}
 	}()
 
 	util.EncodeJSON(w, map[string]string{"origin": originURL})
@@ -120,17 +126,15 @@ func (uh *URLHandler) CreateShortURLHandle(w http.ResponseWriter, r *http.Reques
 	}
 
 	go func() {
-		if err := uh.pub.EnqueueURL(context.Background(), form.Origin, id); err != nil {
-			slog.Error("failed to enequeue url", "url", form.Origin, "url_id", id, "error", err.Error())
-		}
-		if _, err := uh.riverClient.Insert(context.Background(), background.IncreaseCountArgs{
-			ID: id,
-		}, nil); err != nil {
-			slog.Error("failed to enqueue increase view jobs", "url_id", id, "error", err.Error())
-		}
 		uh.mu.Lock()
 		defer uh.mu.Unlock()
 		uh.inputs = append(uh.inputs, domain.CreateInput{ID: id, URL: form.Origin})
+	}()
+
+	go func() {
+		if err := uh.viewCache.SetWithTTL(context.Background(), convertToViewKey(id), 0, 1*time.Minute); err != nil {
+			slog.Error("Failed to set item into cache", "error", err.Error())
+		}
 	}()
 
 	util.EncodeJSON(w, map[string]interface{}{"id": id, "origin": form.Origin})
@@ -158,44 +162,63 @@ func (uh *URLHandler) GetURLView(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	id := parts[len(parts)-1]
 
+	// Old implementation (Can't help with multiple nodes case)
+
+	// var (
+	// 	count    int
+	// 	result   string
+	// 	err      error
+	// 	cacheKey string = fmt.Sprintf("count:%s", id)
+	// )
+
+	// getCacheCtx, gCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer gCancel()
+	// result, err = uh.cache.Get(getCacheCtx, cacheKey)
+	// if err != nil {
+	// 	slog.Error("fail to get view from cache", "error", err.Error())
+	// } else if result != "" {
+	// 	count, err = strconv.Atoi(result)
+	// 	if err != nil {
+	// 		slog.Error("fail to parse cache query result", "error", err.Error())
+	// 	} else {
+	// 		util.EncodeJSON(w, map[string]interface{}{"count": count})
+	// 		return
+	// 	}
+	// }
+
+	// count, err = uh.urlRepo.GetView(context.Background(), id)
+	// if err != nil {
+	// 	slog.Error("fail to get view from database", "error", err.Error())
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
+
+	// count += uh.viewManager.counter.Get(id)
+	// count = max(count, uh.viewManager.GetLast(id))
+	// uh.viewManager.UpdateLast(id, count)
+
 	var (
-		count    int
-		result   string
-		err      error
-		cacheKey string = fmt.Sprintf("count:%s", id)
+		view int
+		err  error
 	)
-
-	getCacheCtx, gCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer gCancel()
-	result, err = uh.cache.Get(getCacheCtx, cacheKey)
+	view, err = uh.viewCache.Get(context.Background(), convertToViewKey(id))
 	if err != nil {
-		slog.Error("fail to get view from cache", "error", err.Error())
-	} else if result != "" {
-		count, err = strconv.Atoi(result)
-		if err != nil {
-			slog.Error("fail to parse cache query result", "error", err.Error())
-		} else {
-			util.EncodeJSON(w, map[string]interface{}{"count": count})
-			return
-		}
+		slog.Error("Failed to get URL view from cache", "url-id", id, "error", err.Error())
+	} else {
+		util.EncodeJSON(w, map[string]interface{}{"count": view})
+		return
 	}
 
-	count, err = uh.urlRepo.GetView(context.Background(), id)
+	view, err = uh.urlRepo.GetView(context.Background(), id)
 	if err != nil {
-		slog.Error("fail to get view from database", "error", err.Error())
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		slog.Error("Failed to get URL view from database", "url-id", id, "error", err.Error())
+	} else {
+		uh.viewCache.SetWithTTL(context.Background(), convertToViewKey(id), view, 30*time.Minute)
+		util.EncodeJSON(w, map[string]interface{}{"count": view})
+		return
 	}
 
-	// setCacheCtx, sCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	// defer sCancel()
-	// err = uh.cache.SetWithTTL(setCacheCtx, cacheKey)
-
-	// Old implementation
-	count += uh.viewManager.counter.Get(id)
-	count = max(count, uh.viewManager.GetLast(id))
-	uh.viewManager.UpdateLast(id, count)
-
-	util.EncodeJSON(w, map[string]interface{}{"count": count})
+	errResponse := fmt.Sprintf("Failed to get URL view of url-id: %s, there's no URL with this ID", id)
+	http.Error(w, errResponse, http.StatusNotFound)
 }
 
 // BatchCreate is a background process that periodically batches and creates URL entries in the system.
@@ -329,4 +352,8 @@ func (c *Counter) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cnt = make(map[string]int)
+}
+
+func convertToViewKey(id string) string {
+	return "view:" + id
 }

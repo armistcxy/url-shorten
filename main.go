@@ -138,7 +138,7 @@ func main() {
 		http.Handle("GET /view/{id}", getViewHandler)
 
 		go urlHandler.BatchCreate()
-		go urlHandler.BatchUpdateView()
+		// go urlHandler.BatchUpdateView()
 	}
 
 	// Gracefully shutdown
@@ -153,6 +153,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), waitTime)
 		defer cancel()
 
+		log.Printf("Shutting down server, server will finish all remain requests in %v\n", waitTime)
 		if err := srv.Shutdown(ctx); err != nil {
 			slog.Error("Error when shutdown HTTP server", "error", err.Error())
 		}
